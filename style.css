@@ -3,31 +3,31 @@
    ============================================================ */
 
 :root {
-  --bg:         #FFFEFC;
-  --surface:    #FFFFFF;
-  --surface-2:  #F5F3FF;
-  --surface-3:  #EDE9FE;
-  --border:     #E2DDF5;
-  --border-2:   #CCC6EF;
+  --bg:         #07050f;
+  --surface:    #0f0c1c;
+  --surface-2:  #161228;
+  --surface-3:  #1e1935;
+  --border:     #231d3a;
+  --border-2:   #2e2750;
 
   --header-bg:  #0d1f35;
 
   --purple-700: #5b21b6;
-  --purple-600: #4f46e5;
-  --purple-500: #6366f1;
-  --purple-400: #818cf8;
-  --purple-300: #a5b4fc;
-  --purple-200: #c7d2fe;
+  --purple-600: #7c3aed;
+  --purple-500: #8b5cf6;
+  --purple-400: #a78bfa;
+  --purple-300: #c4b5fd;
+  --purple-200: #ddd6fe;
 
-  --blue:   #3b82f6;
-  --yellow: #d97706;
-  --orange: #ea580c;
-  --green:  #059669;
-  --red:    #dc2626;
-  --muted:  #9e99b8;
+  --blue:   #60a5fa;
+  --yellow: #fbbf24;
+  --orange: #fb923c;
+  --green:  #34d399;
+  --red:    #f87171;
+  --muted:  #6b6585;
 
-  --text:       #1e1b2e;
-  --text-2:     #4b4570;
+  --text:       #f0eeff;
+  --text-2:     #b8b0d8;
   --text-3:     #7a7298;
 
   --brand:          #C2E9FF;
@@ -58,17 +58,19 @@ body {
 .spinner {
   display: inline-block;
   width: 16px; height: 16px;
-  border: 2px solid rgba(13, 58, 92, 0.2);
-  border-top-color: var(--brand-btn-text);
+  border: 2px solid rgba(255,255,255,0.25);
+  border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   vertical-align: middle;
 }
-.spinner.large {
-  width: 36px; height: 36px;
-  border-width: 3px;
-  border-color: rgba(99, 102, 241, 0.18);
-  border-top-color: var(--purple-600);
+.spinner.large { width: 36px; height: 36px; border-width: 3px; }
+
+/* Spinner inside brand-coloured buttons needs dark colours */
+.btn-auth .spinner,
+.btn-primary .spinner {
+  border-color: rgba(13, 58, 92, 0.25);
+  border-top-color: var(--brand-btn-text);
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -86,8 +88,8 @@ body {
 .auth-bg {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 80% 60% at 50% -10%, #dbeafe 0%, transparent 65%),
-              radial-gradient(ellipse 50% 40% at 80% 80%, #ede9fe 0%, transparent 60%),
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, #2d1060 0%, transparent 70%),
+              radial-gradient(ellipse 50% 40% at 80% 80%, #1a0a40 0%, transparent 60%),
               var(--bg);
 }
 
@@ -95,17 +97,17 @@ body {
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
-  opacity: 0.45;
+  opacity: 0.4;
   animation: float 8s ease-in-out infinite;
 }
 .auth-glow-1 {
   width: 500px; height: 500px;
-  background: radial-gradient(circle, #bfdbfe 0%, transparent 70%);
+  background: radial-gradient(circle, #6d28d9 0%, transparent 70%);
   top: -150px; left: -100px;
 }
 .auth-glow-2 {
   width: 400px; height: 400px;
-  background: radial-gradient(circle, #ddd6fe 0%, transparent 70%);
+  background: radial-gradient(circle, #4c1d95 0%, transparent 70%);
   bottom: -100px; right: -80px;
   animation-delay: -4s;
 }
@@ -116,7 +118,7 @@ body {
 
 .auth-card {
   position: relative;
-  background: rgba(255, 254, 252, 0.92);
+  background: rgba(15, 12, 28, 0.85);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border-2);
@@ -124,7 +126,7 @@ body {
   padding: 40px 40px 36px;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 24px 80px rgba(79, 70, 229, 0.1), 0 0 0 1px rgba(199, 210, 254, 0.5);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(167,139,250,0.07);
   animation: cardIn 0.4s var(--ease);
 }
 @keyframes cardIn {
@@ -142,7 +144,6 @@ body {
   margin-bottom: 6px;
   color: var(--text);
 }
-.auth-logo .accent { color: var(--purple-600); }
 .auth-logo-icon { font-size: 1.5rem; }
 
 .auth-tagline {
@@ -174,9 +175,9 @@ body {
   transition: all 0.2s var(--ease);
 }
 .auth-tab.active {
-  background: var(--surface);
+  background: var(--surface-3);
   color: var(--text);
-  box-shadow: 0 1px 6px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.3);
 }
 
 /* ── Fields (shared) ─────────────────────────────── */
@@ -216,12 +217,12 @@ body {
 .field select:focus,
 .field textarea:focus {
   border-color: var(--purple-500);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 0 3px rgba(139,92,246,0.18);
 }
-.field select option { background: var(--surface); }
+.field select option { background: var(--surface-3); }
 input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.6) sepia(1) saturate(4) hue-rotate(220deg);
   cursor: pointer;
-  opacity: 0.5;
 }
 
 .password-wrap { position: relative; }
@@ -238,8 +239,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .toggle-pw:hover { color: var(--text); }
 
 .auth-error {
-  background: rgba(220, 38, 38, 0.07);
-  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: rgba(248,113,113,0.1);
+  border: 1px solid rgba(248,113,113,0.3);
   color: var(--red);
   border-radius: var(--radius);
   padding: 10px 14px;
@@ -345,7 +346,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* ── Stats Strip ─────────────────────────────────── */
 .stats-strip {
   display: flex;
-  background: var(--surface);
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
   scrollbar-width: none;
@@ -357,35 +358,27 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   min-width: 100px;
   padding: 18px 24px;
   text-align: center;
-  border-right: 1px solid rgba(0, 0, 0, 0.06);
-  transition: filter 0.18s;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  transition: background 0.18s;
 }
-.stat:first-child { border-left: 1px solid rgba(0, 0, 0, 0.06); }
-.stat:hover { filter: brightness(0.96); }
-
-/* Per-stat card backgrounds */
-.stat-total      { background: #E2FFD6; }
-.stat-planning   { background: #FFEBB3; }
-.stat-applied    { background: #FFD9F1; }
-.stat-interviews { background: #E3D9FF; }
-.stat-offers     { background: #D9E7FF; }
-.stat-rejected   { background: #FFB8B8; }
+.stat:first-child { border-left: 1px solid var(--border); }
+.stat:hover { background: var(--surface-2); }
 
 .stat-num {
   font-size: 1.9rem;
   font-weight: 800;
+  color: var(--purple-300);
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  color: var(--text-2);
 }
 
-/* Dark contrasting numbers on each pastel background */
-.stat-total      .stat-num { color: #166534; }
-.stat-planning   .stat-num { color: #78350f; }
-.stat-applied    .stat-num { color: #831843; }
-.stat-interviews .stat-num { color: #4c1d95; }
-.stat-offers     .stat-num { color: #1e3a8a; }
-.stat-rejected   .stat-num { color: #991b1b; }
+.stat-total      .stat-num { color: var(--purple-300); }
+.stat-planning   .stat-num { color: var(--purple-400); }
+.stat-applied    .stat-num { color: var(--blue); }
+.stat-interviews .stat-num { color: var(--yellow); }
+.stat-offers     .stat-num { color: var(--green); }
+.stat-rejected   .stat-num { color: var(--red); }
 
 .stat-label {
   font-size: 0.7rem;
@@ -689,13 +682,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   white-space: nowrap;
   text-transform: uppercase;
 }
-.badge-Planning    { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
-.badge-Applied     { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
-.badge-Interview   { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
-.badge-Interviewed { background: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
-.badge-Offer       { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
-.badge-Rejected    { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
-.badge-Withdrawn   { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+.badge-Planning    { background: rgba(167,139,250,0.12); color: var(--purple-400); border: 1px solid rgba(167,139,250,0.25); }
+.badge-Applied     { background: rgba(96,165,250,0.12);  color: var(--blue);        border: 1px solid rgba(96,165,250,0.25); }
+.badge-Interview   { background: rgba(251,191,36,0.12);  color: var(--yellow);      border: 1px solid rgba(251,191,36,0.25); }
+.badge-Interviewed { background: rgba(251,146,60,0.12);  color: var(--orange);      border: 1px solid rgba(251,146,60,0.25); }
+.badge-Offer       { background: rgba(52,211,153,0.12);  color: var(--green);       border: 1px solid rgba(52,211,153,0.25); }
+.badge-Rejected    { background: rgba(248,113,113,0.12); color: var(--red);         border: 1px solid rgba(248,113,113,0.25); }
+.badge-Withdrawn   { background: rgba(107,101,133,0.12); color: var(--muted);       border: 1px solid rgba(107,101,133,0.25); }
 
 /* ── Empty / Loading ─────────────────────────────── */
 .empty-state {
@@ -734,7 +727,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   max-width: 580px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 32px 80px rgba(30, 27, 46, 0.15), 0 0 0 1px rgba(199, 210, 254, 0.3);
+  box-shadow: 0 32px 96px rgba(0,0,0,0.7), 0 0 0 1px rgba(167,139,250,0.06);
   animation: modalIn 0.22s var(--ease);
   scrollbar-width: thin;
   scrollbar-color: var(--border-2) transparent;
@@ -758,7 +751,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .modal-header h2 {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--text);
+  color: var(--purple-300);
 }
 .modal-close {
   background: var(--surface-2);
@@ -837,7 +830,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition: all 0.18s;
   margin-right: auto;
 }
-.btn-danger-outline:hover { background: rgba(220,38,38,0.06); }
+.btn-danger-outline:hover { background: rgba(248,113,113,0.1); }
 
 /* Detail modal body */
 .detail-grid {
@@ -861,7 +854,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   word-break: break-word;
 }
 .detail-field.full { grid-column: 1 / -1; }
-.detail-field a { color: var(--purple-600); text-decoration: none; }
+.detail-field a { color: var(--purple-400); text-decoration: none; }
 .detail-field a:hover { text-decoration: underline; }
 .detail-field .notes-val {
   white-space: pre-wrap;
@@ -878,8 +871,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .toast {
   position: fixed;
   bottom: 28px; right: 28px;
-  background: var(--text);
-  color: #FFFEFC;
+  background: var(--surface-3);
+  border: 1px solid var(--border-2);
+  color: var(--text);
   padding: 12px 20px;
   border-radius: var(--radius);
   font-size: 0.9rem;
@@ -1106,9 +1100,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   text-overflow: ellipsis;
 }
 .badge-deadline {
-  background: #ffedd5;
-  color: #9a3412;
-  border: 1px solid #fdba74;
+  background: rgba(251,146,60,0.12);
+  color: var(--orange);
+  border: 1px solid rgba(251,146,60,0.25);
 }
 
 /* ── Responsive ──────────────────────────────────── */

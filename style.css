@@ -853,6 +853,224 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Calendar Button ─────────────────────────────── */
+.btn-calendar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  background: transparent;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s;
+}
+.btn-calendar:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--purple-500);
+}
+
+/* ── Calendar Modal ──────────────────────────────── */
+.calendar-modal {
+  max-width: 660px;
+}
+
+.cal-modal-header {
+  justify-content: space-between;
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.cal-nav h2 {
+  min-width: 170px;
+  text-align: center;
+}
+
+.btn-cal-nav {
+  width: 32px; height: 32px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  color: var(--text-2);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.btn-cal-nav:hover { background: var(--surface-3); color: var(--text); }
+
+.cal-body {
+  padding: 16px 24px 20px;
+}
+
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.cal-weekdays span {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  padding: 4px 0;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cal-day {
+  min-height: 56px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  transition: background 0.15s, border-color 0.15s;
+}
+.cal-day-empty {
+  background: transparent;
+  border-color: transparent;
+  pointer-events: none;
+}
+.cal-day.cal-today {
+  border-color: var(--purple-500);
+  background: rgba(139,92,246,0.08);
+}
+.cal-day.cal-has-events {
+  cursor: pointer;
+}
+.cal-day.cal-has-events:hover {
+  background: var(--surface-3);
+  border-color: var(--border-2);
+}
+.cal-day.cal-selected {
+  border-color: var(--purple-400);
+  background: rgba(167,139,250,0.1);
+}
+
+.cal-day-num {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-2);
+  line-height: 1;
+}
+.cal-today .cal-day-num {
+  color: var(--purple-300);
+  font-weight: 800;
+}
+
+.cal-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 5px;
+}
+.cal-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cal-dot-more {
+  font-size: 0.6rem;
+  color: var(--text-3);
+  font-weight: 700;
+  line-height: 6px;
+}
+
+.cal-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.cal-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+
+/* ── Calendar Day Detail ─────────────────────────── */
+.cal-day-detail {
+  border-top: 1px solid var(--border);
+  padding: 14px 24px 20px;
+  animation: fadeOverlay 0.15s var(--ease);
+}
+.cal-day-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.cal-day-detail-header span {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.cal-day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cal-event-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  transition: background 0.15s;
+}
+.cal-event-item:hover { background: var(--surface-3); }
+.cal-event-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cal-event-company {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-event-role {
+  font-size: 0.78rem;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.badge-deadline {
+  background: rgba(251,146,60,0.12);
+  color: var(--orange);
+  border: 1px solid rgba(251,146,60,0.25);
+}
+
 /* ── Responsive ──────────────────────────────────── */
 @media (max-width: 640px) {
   .app-header { padding: 0 16px; }

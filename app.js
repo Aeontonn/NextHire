@@ -464,7 +464,7 @@ detailClose.addEventListener('click', closeDetailModal);
 detailOverlay.addEventListener('click', (e) => { if (e.target === detailOverlay) closeDetailModal(); });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { closeModal(); closeDetailModal(); }
+  if (e.key === 'Escape') { closeModal(); closeDetailModal(); closeCalendarModal(); }
 });
 
 // ── Filters ───────────────────────────────────────
@@ -508,6 +508,174 @@ const AVATAR_COLORS = [
 ];
 function avatarColor(name) {
   return AVATAR_COLORS[(name.charCodeAt(0) + name.length) % AVATAR_COLORS.length];
+}
+
+// ── Calendar ──────────────────────────────────────
+let calYear  = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let calSelectedDay = null;
+
+const calendarOverlay = document.getElementById('calendar-overlay');
+const calMonthTitle   = document.getElementById('cal-month-title');
+const calGrid         = document.getElementById('cal-grid');
+const calDayDetail    = document.getElementById('cal-day-detail');
+const calDayTitle     = document.getElementById('cal-day-title');
+const calDayEvents    = document.getElementById('cal-day-events');
+
+document.getElementById('cal-btn').addEventListener('click', openCalendarModal);
+document.getElementById('cal-close-btn').addEventListener('click', closeCalendarModal);
+document.getElementById('cal-day-close-btn').addEventListener('click', () => {
+  calDayDetail.style.display = 'none';
+  calGrid.querySelectorAll('.cal-selected').forEach(el => el.classList.remove('cal-selected'));
+});
+calendarOverlay.addEventListener('click', (e) => { if (e.target === calendarOverlay) closeCalendarModal(); });
+document.getElementById('cal-prev-btn').addEventListener('click', () => {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+});
+document.getElementById('cal-next-btn').addEventListener('click', () => {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+});
+
+function openCalendarModal() {
+  calYear  = new Date().getFullYear();
+  calMonth = new Date().getMonth();
+  calSelectedDay = null;
+  calDayDetail.style.display = 'none';
+  renderCalendar();
+  calendarOverlay.style.display = 'flex';
+}
+
+function closeCalendarModal() {
+  calendarOverlay.style.display = 'none';
+}
+
+function getCalendarEvents() {
+  const events = {};
+  apps.forEach(app => {
+    if (app.date_applied && app.status !== 'Planning') {
+      if (!events[app.date_applied]) events[app.date_applied] = [];
+      events[app.date_applied].push({ type: 'applied', app });
+    }
+    if (app.deadline) {
+      if (!events[app.deadline]) events[app.deadline] = [];
+      events[app.deadline].push({ type: 'deadline', app });
+    }
+  });
+  return events;
+}
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+const STATUS_COLORS = {
+  Planning:    'var(--purple-400)',
+  Applied:     'var(--blue)',
+  Interview:   'var(--yellow)',
+  Interviewed: 'var(--orange)',
+  Offer:       'var(--green)',
+  Rejected:    'var(--red)',
+  Withdrawn:   'var(--muted)',
+};
+
+function renderCalendar() {
+  calMonthTitle.textContent = `${MONTH_NAMES[calMonth]} ${calYear}`;
+  calDayDetail.style.display = 'none';
+  calSelectedDay = null;
+
+  const events   = getCalendarEvents();
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  let startOffset = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
+  startOffset = (startOffset + 6) % 7; // Mon=0 ... Sun=6
+
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+  calGrid.innerHTML = '';
+
+  for (let i = 0; i < startOffset; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-day cal-day-empty';
+    calGrid.appendChild(cell);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr   = `${calYear}-${String(calMonth + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayEvents = events[dateStr] || [];
+
+    const cell = document.createElement('div');
+    cell.className = 'cal-day';
+    if (dateStr === todayStr)    cell.classList.add('cal-today');
+    if (dayEvents.length > 0)   cell.classList.add('cal-has-events');
+
+    cell.innerHTML = `<span class="cal-day-num">${d}</span>`;
+
+    if (dayEvents.length > 0) {
+      const dotsEl = document.createElement('div');
+      dotsEl.className = 'cal-dots';
+      dayEvents.slice(0, 4).forEach(ev => {
+        const dot = document.createElement('span');
+        dot.className = 'cal-dot';
+        dot.style.background = ev.type === 'deadline'
+          ? 'var(--orange)'
+          : (STATUS_COLORS[ev.app.status] || 'var(--text-3)');
+        dotsEl.appendChild(dot);
+      });
+      if (dayEvents.length > 4) {
+        const more = document.createElement('span');
+        more.className = 'cal-dot-more';
+        more.textContent = `+${dayEvents.length - 4}`;
+        dotsEl.appendChild(more);
+      }
+      cell.appendChild(dotsEl);
+
+      cell.addEventListener('click', () => {
+        calGrid.querySelectorAll('.cal-selected').forEach(el => el.classList.remove('cal-selected'));
+        cell.classList.add('cal-selected');
+        calSelectedDay = dateStr;
+        showDayDetail(dateStr, dayEvents);
+      });
+    }
+
+    calGrid.appendChild(cell);
+  }
+}
+
+function showDayDetail(dateStr, dayEvents) {
+  const [y, m, d] = dateStr.split('-');
+  calDayTitle.textContent = `${Number(d)} ${MONTH_NAMES[Number(m) - 1]} ${y}`;
+  calDayEvents.innerHTML = '';
+
+  dayEvents.forEach(ev => {
+    const item = document.createElement('div');
+    item.className = 'cal-event-item';
+
+    const isDeadline = ev.type === 'deadline';
+    const badgeClass = isDeadline ? 'badge-deadline' : `badge-${ev.app.status}`;
+    const typeLabel  = isDeadline ? 'Deadline' : statusLabel(ev.app.status);
+
+    item.innerHTML = `
+      <span class="badge ${badgeClass}">${esc(typeLabel)}</span>
+      <div class="cal-event-info">
+        <span class="cal-event-company">${esc(ev.app.company)}</span>
+        <span class="cal-event-role">${esc(ev.app.role)}</span>
+      </div>
+      <button class="btn-icon" title="View details">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+      </button>
+    `;
+
+    item.querySelector('.btn-icon').addEventListener('click', () => {
+      closeCalendarModal();
+      openDetailModal(ev.app.id);
+    });
+
+    calDayEvents.appendChild(item);
+  });
+
+  calDayDetail.style.display = 'block';
 }
 
 // ── Toast ─────────────────────────────────────────

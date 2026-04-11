@@ -2,6 +2,8 @@
 
 A polished internship application tracker with user accounts and real-time sync across all your devices. Built with plain HTML/CSS/JS and powered by Supabase.
 
+aeontonn.github.io/NextHire/
+
 ## Features
 
 - **Accounts** — sign up / sign in with email and password

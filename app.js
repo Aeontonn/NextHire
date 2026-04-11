@@ -446,7 +446,7 @@ function openDetailModal(id) {
         <div class="val">${fmtDate(app.date_applied)}</div>
       </div>
       ${app.deadline ? `<div class="detail-field"><label>Deadline</label><div class="val">${fmtDate(app.deadline)}</div></div>` : ''}
-      ${app.link ? `<div class="detail-field full"><label>Job Posting</label><div class="val"><a href="${esc(app.link)}" target="_blank" rel="noopener noreferrer">${esc(app.link)}</a></div></div>` : ''}
+      ${app.link ? (() => { const sl = safeUrl(app.link); return sl ? `<div class="detail-field full"><label>Job Posting</label><div class="val"><a href="${esc(sl)}" target="_blank" rel="noopener noreferrer">${esc(app.link)}</a></div></div>` : `<div class="detail-field full"><label>Job Posting</label><div class="val" style="color:var(--text-3);font-size:0.88rem">${esc(app.link)}<br><span style="color:var(--red);font-size:0.78rem">⚠ Not a valid http/https URL</span></div></div>`; })() : ''}
       ${app.notes ? `<div class="detail-field full"><label>Notes</label><div class="val notes-val">${esc(app.notes)}</div></div>` : ''}
     </div>
   `;
@@ -495,6 +495,13 @@ function esc(s) {
   return String(s || '')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function safeUrl(url) {
+  try {
+    const u = new URL(String(url || ''));
+    return (u.protocol === 'http:' || u.protocol === 'https:') ? url : null;
+  } catch { return null; }
 }
 
 function statusLabel(s) {

@@ -1,110 +1,439 @@
 /* ============================================================
-   LIA Tracker — Application Logic
-   Data is persisted in localStorage under "lia_apps"
+   LIA Tracker — Supabase-backed app
    ============================================================ */
 
-const STORAGE_KEY = 'lia_apps';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// ── Supabase init ─────────────────────────────────
+const SUPABASE_URL  = 'https://zssdqkkdfxjdmjcfilhy.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpzc2Rxa2tkZnhqZG1qY2ZpbGh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NTI4OTcsImV4cCI6MjA5MTQyODg5N30.0ZcXeR8sf2u1opf6hBigj0DvEVK0-WJ5VucWEyoMEYQ';
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ── State ─────────────────────────────────────────
-let apps = loadApps();
+let apps      = [];
+let currentUser = null;
 let editingId = null;
 
-// ── Persistence ──────────────────────────────────
-function loadApps() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-  } catch { return []; }
-}
+// ── DOM ───────────────────────────────────────────
+const authScreen    = document.getElementById('auth-screen');
+const appScreen     = document.getElementById('app-screen');
 
-function saveApps() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
-}
+// Auth
+const authForm      = document.getElementById('auth-form');
+const authEmail     = document.getElementById('auth-email');
+const authPassword  = document.getElementById('auth-password');
+const authConfirm   = document.getElementById('auth-confirm');
+const confirmField  = document.getElementById('confirm-field');
+const authTabs      = document.querySelectorAll('.auth-tab');
+const authSubmit    = document.getElementById('auth-submit');
+const authBtnText   = document.getElementById('auth-btn-text');
+const authSpinner   = document.getElementById('auth-spinner');
+const authError     = document.getElementById('auth-error');
+const togglePw      = document.getElementById('toggle-pw');
 
-// ── DOM Refs ──────────────────────────────────────
-const form         = document.getElementById('app-form');
-const editIdField  = document.getElementById('edit-id');
-const submitBtn    = document.getElementById('submit-btn');
-const cancelBtn    = document.getElementById('cancel-btn');
-const formTitle    = document.getElementById('form-title');
-const appList      = document.getElementById('app-list');
-const emptyState   = document.getElementById('empty-state');
-const searchInput  = document.getElementById('search');
-const filterStatus = document.getElementById('filter-status');
-const sortBy       = document.getElementById('sort-by');
-const modalOverlay = document.getElementById('modal-overlay');
-const modalTitle   = document.getElementById('modal-title');
-const modalBody    = document.getElementById('modal-body');
-const modalEditBtn = document.getElementById('modal-edit-btn');
-const modalDelBtn  = document.getElementById('modal-delete-btn');
-const modalClose   = document.getElementById('modal-close-btn');
-const toast        = document.getElementById('toast');
+// App
+const userEmailEl   = document.getElementById('user-email');
+const logoutBtn     = document.getElementById('logout-btn');
+const searchInput   = document.getElementById('search');
+const filterStatus  = document.getElementById('filter-status');
+const sortBy        = document.getElementById('sort-by');
+const openAddBtn    = document.getElementById('open-add-btn');
+const appList       = document.getElementById('app-list');
+const emptyState    = document.getElementById('empty-state');
+const loadingState  = document.getElementById('loading-state');
 
-// ── Form: Submit ──────────────────────────────────
-form.addEventListener('submit', (e) => {
-  e.preventDefault();
+// Add/Edit modal
+const modalOverlay  = document.getElementById('modal-overlay');
+const modalTitle    = document.getElementById('modal-title');
+const appForm       = document.getElementById('app-form');
+const editIdField   = document.getElementById('edit-id');
+const modalCloseBtn = document.getElementById('modal-close-btn');
+const modalCancelBtn= document.getElementById('modal-cancel-btn');
+const modalSubmit   = document.getElementById('modal-submit-btn');
+const modalBtnText  = document.getElementById('modal-btn-text');
+const modalSpinner  = document.getElementById('modal-spinner');
 
-  const entry = {
-    id:          editingId || crypto.randomUUID(),
-    company:     val('company'),
-    role:        val('role'),
-    location:    val('location'),
-    dateApplied: val('date-applied'),
-    deadline:    val('deadline'),
-    status:      val('status'),
-    link:        val('link'),
-    notes:       val('notes'),
-    createdAt:   editingId ? getApp(editingId)?.createdAt : Date.now(),
-    updatedAt:   Date.now(),
-  };
+// Detail modal
+const detailOverlay = document.getElementById('detail-overlay');
+const detailTitle   = document.getElementById('detail-title');
+const detailBody    = document.getElementById('detail-body');
+const detailClose   = document.getElementById('detail-close-btn');
+const detailEdit    = document.getElementById('detail-edit-btn');
+const detailDelete  = document.getElementById('detail-delete-btn');
 
-  if (editingId) {
-    apps = apps.map(a => a.id === editingId ? entry : a);
-    showToast('Application updated.');
-  } else {
-    apps.unshift(entry);
-    showToast('Application added!');
-  }
+const toast         = document.getElementById('toast');
 
-  saveApps();
-  resetForm();
-  render();
+// ── Auth: tab switching ───────────────────────────
+let authMode = 'login';
+
+authTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    authMode = tab.dataset.tab;
+    authTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === authMode));
+    confirmField.style.display = authMode === 'signup' ? 'flex' : 'none';
+    authBtnText.textContent    = authMode === 'signup' ? 'Create Account' : 'Sign In';
+    authConfirm.required       = authMode === 'signup';
+    hideAuthError();
+  });
 });
 
-// ── Form: Cancel Edit ─────────────────────────────
-cancelBtn.addEventListener('click', resetForm);
+// ── Auth: password toggle ─────────────────────────
+togglePw.addEventListener('click', () => {
+  const pw = authPassword;
+  pw.type = pw.type === 'password' ? 'text' : 'password';
+  togglePw.textContent = pw.type === 'password' ? '👁' : '🙈';
+});
 
-function resetForm() {
-  editingId = null;
-  form.reset();
-  editIdField.value = '';
-  formTitle.textContent = 'Add Application';
-  submitBtn.textContent = 'Add Application';
-  cancelBtn.style.display = 'none';
+// ── Auth: submit ──────────────────────────────────
+authForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hideAuthError();
+
+  const email    = authEmail.value.trim();
+  const password = authPassword.value;
+
+  if (authMode === 'signup') {
+    if (password !== authConfirm.value) {
+      showAuthError('Passwords do not match.');
+      return;
+    }
+    if (password.length < 6) {
+      showAuthError('Password must be at least 6 characters.');
+      return;
+    }
+  }
+
+  setAuthLoading(true);
+  try {
+    if (authMode === 'login') {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } else {
+      const { error } = await sb.auth.signUp({ email, password });
+      if (error) throw error;
+      showAuthError('✅ Account created! Check your email to confirm, then sign in.', true);
+      setAuthLoading(false);
+      return;
+    }
+  } catch (err) {
+    showAuthError(friendlyAuthError(err.message));
+    setAuthLoading(false);
+  }
+});
+
+function setAuthLoading(on) {
+  authSubmit.disabled   = on;
+  authBtnText.style.display  = on ? 'none' : 'inline';
+  authSpinner.style.display  = on ? 'inline-block' : 'none';
 }
 
-function populateForm(app) {
-  editingId = app.id;
+function showAuthError(msg, success = false) {
+  authError.textContent = msg;
+  authError.style.display = 'block';
+  authError.style.color = success ? 'var(--green)' : 'var(--red)';
+  authError.style.borderColor = success ? 'rgba(52,211,153,0.3)' : 'rgba(248,113,113,0.3)';
+  authError.style.background  = success ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)';
+}
+
+function hideAuthError() {
+  authError.style.display = 'none';
+}
+
+function friendlyAuthError(msg) {
+  if (msg.includes('Invalid login'))   return 'Incorrect email or password.';
+  if (msg.includes('already registered')) return 'An account with this email already exists.';
+  if (msg.includes('Email not confirmed')) return 'Please confirm your email before signing in.';
+  return msg;
+}
+
+// ── Auth: sign out ────────────────────────────────
+logoutBtn.addEventListener('click', async () => {
+  await sb.auth.signOut();
+});
+
+// ── Auth: state listener ──────────────────────────
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) {
+    currentUser = session.user;
+    showApp();
+  } else {
+    currentUser = null;
+    showAuth();
+  }
+});
+
+function showAuth() {
+  authScreen.style.display = 'flex';
+  appScreen.style.display  = 'none';
+  apps = [];
+  authForm.reset();
+  setAuthLoading(false);
+  hideAuthError();
+}
+
+async function showApp() {
+  authScreen.style.display = 'none';
+  appScreen.style.display  = 'block';
+  userEmailEl.textContent  = currentUser.email;
+  loadingState.style.display = 'block';
+  emptyState.style.display   = 'none';
+  appList.innerHTML = '';
+  await fetchApps();
+}
+
+// ── Database: fetch ───────────────────────────────
+async function fetchApps() {
+  const { data, error } = await sb
+    .from('applications')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  loadingState.style.display = 'none';
+
+  if (error) { showToast('Failed to load applications.'); return; }
+  apps = data || [];
+  render();
+}
+
+// ── Database: add / update ────────────────────────
+appForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  setModalLoading(true);
+
+  const payload = {
+    company:      val('company'),
+    role:         val('role'),
+    location:     val('location') || null,
+    date_applied: val('date-applied'),
+    deadline:     val('deadline')  || null,
+    status:       val('status'),
+    link:         val('link')      || null,
+    notes:        val('notes')     || null,
+    user_id:      currentUser.id,
+    updated_at:   new Date().toISOString(),
+  };
+
+  let error;
+  if (editingId) {
+    ({ error } = await sb.from('applications').update(payload).eq('id', editingId));
+  } else {
+    ({ error } = await sb.from('applications').insert(payload));
+  }
+
+  setModalLoading(false);
+
+  if (error) { showToast('Error saving — please try again.'); return; }
+
+  showToast(editingId ? 'Application updated.' : 'Application added!');
+  closeModal();
+  await fetchApps();
+});
+
+// ── Database: delete ──────────────────────────────
+async function deleteApp(id) {
+  const app = apps.find(a => a.id === id);
+  if (!confirm(`Delete application to ${app?.company}?`)) return;
+
+  const { error } = await sb.from('applications').delete().eq('id', id);
+  if (error) { showToast('Error deleting — please try again.'); return; }
+
+  showToast('Application deleted.');
+  closeDetailModal();
+  await fetchApps();
+}
+
+// ── Render ────────────────────────────────────────
+function render() {
+  updateStats();
+
+  const search = searchInput.value.toLowerCase();
+  const status = filterStatus.value;
+  const sort   = sortBy.value;
+
+  let filtered = apps.filter(a => {
+    const q = !search ||
+      a.company.toLowerCase().includes(search) ||
+      a.role.toLowerCase().includes(search) ||
+      (a.location || '').toLowerCase().includes(search);
+    const s = !status || a.status === status;
+    return q && s;
+  });
+
+  filtered.sort((a, b) => {
+    if (sort === 'date-asc')  return a.date_applied.localeCompare(b.date_applied);
+    if (sort === 'date-desc') return b.date_applied.localeCompare(a.date_applied);
+    if (sort === 'company')   return a.company.localeCompare(b.company);
+    if (sort === 'status')    return a.status.localeCompare(b.status);
+    return 0;
+  });
+
+  appList.innerHTML = '';
+  emptyState.style.display = filtered.length === 0 ? 'block' : 'none';
+
+  filtered.forEach((app, i) => {
+    const card = document.createElement('div');
+    card.className = `app-card s-${app.status}`;
+    card.style.animationDelay = `${i * 30}ms`;
+
+    const initials = app.company.slice(0,2).toUpperCase();
+    const avatarBg = avatarColor(app.company);
+    const deadline = app.deadline
+      ? `<span>📅 Deadline ${fmtDate(app.deadline)}</span>` : '';
+
+    card.innerHTML = `
+      <div class="card-avatar" style="background:${avatarBg}">${esc(initials)}</div>
+      <div class="card-body">
+        <div class="card-top">
+          <span class="card-company">${esc(app.company)}</span>
+        </div>
+        <div class="card-role">${esc(app.role)}</div>
+        <div class="card-meta">
+          ${app.location ? `<span>📍 ${esc(app.location)}</span>` : ''}
+          <span>📅 ${fmtDate(app.date_applied)}</span>
+          <span>${daysAgo(app.date_applied)}</span>
+          ${deadline}
+        </div>
+      </div>
+      <div class="card-right">
+        <span class="badge badge-${app.status}">${statusLabel(app.status)}</span>
+        <div class="card-actions">
+          <button class="btn-icon edit-btn" title="Edit" data-id="${app.id}">✏️</button>
+          <button class="btn-icon danger del-btn" title="Delete" data-id="${app.id}">🗑</button>
+        </div>
+      </div>
+    `;
+
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.edit-btn') || e.target.closest('.del-btn')) return;
+      openDetailModal(app.id);
+    });
+    card.querySelector('.edit-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openEditModal(app.id);
+    });
+    card.querySelector('.del-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteApp(app.id);
+    });
+
+    appList.appendChild(card);
+  });
+}
+
+// ── Stats ─────────────────────────────────────────
+function updateStats() {
+  document.getElementById('s-total').textContent    = apps.length;
+  document.getElementById('s-applied').textContent  = apps.filter(a => a.status === 'Applied').length;
+  document.getElementById('s-interview').textContent = apps.filter(a => a.status === 'Interview' || a.status === 'Interviewed').length;
+  document.getElementById('s-offer').textContent    = apps.filter(a => a.status === 'Offer').length;
+  document.getElementById('s-rejected').textContent = apps.filter(a => a.status === 'Rejected').length;
+}
+
+// ── Add Modal ─────────────────────────────────────
+openAddBtn.addEventListener('click', () => openAddModal());
+
+function openAddModal() {
+  editingId = null;
+  appForm.reset();
+  editIdField.value = '';
+  document.getElementById('date-applied').value = today();
+  modalTitle.textContent    = 'Add Application';
+  modalBtnText.textContent  = 'Add Application';
+  modalOverlay.style.display = 'flex';
+  setTimeout(() => document.getElementById('company').focus(), 80);
+}
+
+function openEditModal(id) {
+  const app = apps.find(a => a.id === id);
+  if (!app) return;
+  editingId = id;
   setVal('company',      app.company);
   setVal('role',         app.role);
   setVal('location',     app.location);
-  setVal('date-applied', app.dateApplied);
+  setVal('date-applied', app.date_applied);
   setVal('deadline',     app.deadline);
   setVal('status',       app.status);
   setVal('link',         app.link);
   setVal('notes',        app.notes);
-  formTitle.textContent  = 'Edit Application';
-  submitBtn.textContent  = 'Save Changes';
-  cancelBtn.style.display = 'inline-block';
-  form.querySelector('#company').focus();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  modalTitle.textContent   = 'Edit Application';
+  modalBtnText.textContent = 'Save Changes';
+  modalOverlay.style.display = 'flex';
+  closeDetailModal();
 }
 
-// ── Helpers ───────────────────────────────────────
-function val(id) { return document.getElementById(id).value.trim(); }
-function setVal(id, v) { document.getElementById(id).value = v || ''; }
-function getApp(id) { return apps.find(a => a.id === id); }
+function closeModal() {
+  modalOverlay.style.display = 'none';
+  editingId = null;
+}
 
-function formatDate(iso) {
+modalCloseBtn.addEventListener('click',  closeModal);
+modalCancelBtn.addEventListener('click', closeModal);
+modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+
+function setModalLoading(on) {
+  modalSubmit.disabled          = on;
+  modalBtnText.style.display    = on ? 'none' : 'inline';
+  modalSpinner.style.display    = on ? 'inline-block' : 'none';
+}
+
+// ── Detail Modal ──────────────────────────────────
+function openDetailModal(id) {
+  const app = apps.find(a => a.id === id);
+  if (!app) return;
+
+  detailTitle.textContent = `${app.company} — ${app.role}`;
+  detailBody.innerHTML = `
+    <div class="detail-grid">
+      <div class="detail-field">
+        <label>Company</label>
+        <div class="val">${esc(app.company)}</div>
+      </div>
+      <div class="detail-field">
+        <label>Status</label>
+        <div class="val"><span class="badge badge-${app.status}">${statusLabel(app.status)}</span></div>
+      </div>
+      <div class="detail-field full">
+        <label>Role</label>
+        <div class="val">${esc(app.role)}</div>
+      </div>
+      ${app.location ? `<div class="detail-field"><label>Location</label><div class="val">${esc(app.location)}</div></div>` : ''}
+      <div class="detail-field">
+        <label>Date Applied</label>
+        <div class="val">${fmtDate(app.date_applied)}</div>
+      </div>
+      ${app.deadline ? `<div class="detail-field"><label>Deadline</label><div class="val">${fmtDate(app.deadline)}</div></div>` : ''}
+      ${app.link ? `<div class="detail-field full"><label>Job Posting</label><div class="val"><a href="${esc(app.link)}" target="_blank" rel="noopener noreferrer">${esc(app.link)}</a></div></div>` : ''}
+      ${app.notes ? `<div class="detail-field full"><label>Notes</label><div class="val notes-val">${esc(app.notes)}</div></div>` : ''}
+    </div>
+  `;
+
+  detailEdit.onclick   = () => openEditModal(id);
+  detailDelete.onclick = () => deleteApp(id);
+  detailOverlay.style.display = 'flex';
+}
+
+function closeDetailModal() {
+  detailOverlay.style.display = 'none';
+}
+
+detailClose.addEventListener('click', closeDetailModal);
+detailOverlay.addEventListener('click', (e) => { if (e.target === detailOverlay) closeDetailModal(); });
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeModal(); closeDetailModal(); }
+});
+
+// ── Filters ───────────────────────────────────────
+searchInput.addEventListener('input',  render);
+filterStatus.addEventListener('change', render);
+sortBy.addEventListener('change',      render);
+
+// ── Helpers ───────────────────────────────────────
+function val(id)       { return document.getElementById(id).value.trim(); }
+function setVal(id, v) { document.getElementById(id).value = v || ''; }
+function today()       { return new Date().toISOString().split('T')[0]; }
+
+function fmtDate(iso) {
   if (!iso) return '—';
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
@@ -118,181 +447,24 @@ function daysAgo(iso) {
   return `${diff} days ago`;
 }
 
-// ── Render ────────────────────────────────────────
-function render() {
-  updateStats();
-
-  const search = searchInput.value.toLowerCase();
-  const status = filterStatus.value;
-  const sort   = sortBy.value;
-
-  let filtered = apps.filter(a => {
-    const matchSearch = !search ||
-      a.company.toLowerCase().includes(search) ||
-      a.role.toLowerCase().includes(search) ||
-      (a.location || '').toLowerCase().includes(search);
-    const matchStatus = !status || a.status === status;
-    return matchSearch && matchStatus;
-  });
-
-  filtered.sort((a, b) => {
-    if (sort === 'date-asc')  return a.dateApplied.localeCompare(b.dateApplied);
-    if (sort === 'date-desc') return b.dateApplied.localeCompare(a.dateApplied);
-    if (sort === 'company')   return a.company.localeCompare(b.company);
-    if (sort === 'status')    return a.status.localeCompare(b.status);
-    return 0;
-  });
-
-  appList.innerHTML = '';
-
-  if (filtered.length === 0) {
-    emptyState.style.display = 'block';
-    return;
-  }
-  emptyState.style.display = 'none';
-
-  filtered.forEach(app => {
-    const card = document.createElement('div');
-    card.className = `app-card status-${app.status}`;
-    card.dataset.id = app.id;
-
-    const deadlineHtml = app.deadline
-      ? `<span>&#128197; Deadline ${formatDate(app.deadline)}</span>`
-      : '';
-
-    card.innerHTML = `
-      <div class="card-main">
-        <div class="card-company">${esc(app.company)}</div>
-        <div class="card-role">${esc(app.role)}</div>
-        <div class="card-meta">
-          ${app.location ? `<span>&#128205; ${esc(app.location)}</span>` : ''}
-          <span>&#128336; Applied ${formatDate(app.dateApplied)}</span>
-          <span>${daysAgo(app.dateApplied)}</span>
-          ${deadlineHtml}
-        </div>
-      </div>
-      <div class="card-actions">
-        <span class="badge badge-${app.status}">${statusLabel(app.status)}</span>
-        <div style="display:flex;gap:6px;margin-top:4px;">
-          <button class="btn btn-ghost btn-icon edit-btn" data-id="${app.id}" title="Edit">&#9998;</button>
-          <button class="btn btn-danger btn-icon del-btn" data-id="${app.id}" title="Delete">&#128465;</button>
-        </div>
-      </div>
-    `;
-
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('.edit-btn') || e.target.closest('.del-btn')) return;
-      openModal(app.id);
-    });
-
-    card.querySelector('.edit-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeModal();
-      populateForm(getApp(app.id));
-    });
-
-    card.querySelector('.del-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteApp(app.id);
-    });
-
-    appList.appendChild(card);
-  });
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// ── Stats ─────────────────────────────────────────
-function updateStats() {
-  const total      = apps.length;
-  const applied    = apps.filter(a => a.status === 'Applied').length;
-  const interview  = apps.filter(a => a.status === 'Interview' || a.status === 'Interviewed').length;
-  const offer      = apps.filter(a => a.status === 'Offer').length;
-  const rejected   = apps.filter(a => a.status === 'Rejected').length;
-
-  document.getElementById('s-total').textContent    = total;
-  document.getElementById('s-applied').textContent  = applied;
-  document.getElementById('s-interview').textContent = interview;
-  document.getElementById('s-offer').textContent    = offer;
-  document.getElementById('s-rejected').textContent = rejected;
+function statusLabel(s) {
+  const m = { Applied:'Applied', Interview:'Interview Scheduled', Interviewed:'Interviewed', Offer:'Offer Received', Rejected:'Rejected', Withdrawn:'Withdrawn' };
+  return m[s] || s;
 }
 
-// ── Delete ────────────────────────────────────────
-function deleteApp(id) {
-  const app = getApp(id);
-  if (!confirm(`Delete application to ${app?.company}?`)) return;
-  apps = apps.filter(a => a.id !== id);
-  saveApps();
-  if (editingId === id) resetForm();
-  closeModal();
-  render();
-  showToast('Application deleted.');
+const AVATAR_COLORS = [
+  '#7c3aed','#2563eb','#059669','#b45309',
+  '#be185d','#0891b2','#dc2626','#7c3aed',
+];
+function avatarColor(name) {
+  return AVATAR_COLORS[(name.charCodeAt(0) + name.length) % AVATAR_COLORS.length];
 }
-
-// ── Modal ─────────────────────────────────────────
-function openModal(id) {
-  const app = getApp(id);
-  if (!app) return;
-
-  modalTitle.textContent = `${app.company} — ${app.role}`;
-
-  modalBody.innerHTML = `
-    <div class="modal-body-grid">
-      <div class="modal-field">
-        <label>Company</label>
-        <div class="val">${esc(app.company)}</div>
-      </div>
-      <div class="modal-field">
-        <label>Status</label>
-        <div class="val"><span class="badge badge-${app.status}">${statusLabel(app.status)}</span></div>
-      </div>
-      <div class="modal-field full">
-        <label>Role</label>
-        <div class="val">${esc(app.role)}</div>
-      </div>
-      ${app.location ? `
-      <div class="modal-field">
-        <label>Location</label>
-        <div class="val">${esc(app.location)}</div>
-      </div>` : ''}
-      <div class="modal-field">
-        <label>Date Applied</label>
-        <div class="val">${formatDate(app.dateApplied)}</div>
-      </div>
-      ${app.deadline ? `
-      <div class="modal-field">
-        <label>Deadline</label>
-        <div class="val">${formatDate(app.deadline)}</div>
-      </div>` : ''}
-      ${app.link ? `
-      <div class="modal-field full">
-        <label>Job Posting</label>
-        <div class="val"><a href="${esc(app.link)}" target="_blank" rel="noopener">${esc(app.link)}</a></div>
-      </div>` : ''}
-      ${app.notes ? `
-      <div class="modal-field full">
-        <label>Notes</label>
-        <div class="val" style="white-space:pre-wrap">${esc(app.notes)}</div>
-      </div>` : ''}
-    </div>
-  `;
-
-  modalEditBtn.onclick = () => { closeModal(); populateForm(app); };
-  modalDelBtn.onclick  = () => deleteApp(id);
-
-  modalOverlay.style.display = 'flex';
-}
-
-function closeModal() {
-  modalOverlay.style.display = 'none';
-}
-
-modalClose.addEventListener('click', closeModal);
-modalOverlay.addEventListener('click', (e) => {
-  if (e.target === modalOverlay) closeModal();
-});
-
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeModal();
-});
 
 // ── Toast ─────────────────────────────────────────
 let toastTimer;
@@ -300,39 +472,5 @@ function showToast(msg) {
   toast.textContent = msg;
   toast.style.display = 'block';
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 2800);
+  toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 3000);
 }
-
-// ── Filters / Search ──────────────────────────────
-searchInput.addEventListener('input', render);
-filterStatus.addEventListener('change', render);
-sortBy.addEventListener('change', render);
-
-// ── XSS Safety ───────────────────────────────────
-function esc(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// ── Status Label Map ──────────────────────────────
-function statusLabel(s) {
-  const map = {
-    Applied:     'Applied',
-    Interview:   'Interview Scheduled',
-    Interviewed: 'Interviewed',
-    Offer:       'Offer Received',
-    Rejected:    'Rejected',
-    Withdrawn:   'Withdrawn',
-  };
-  return map[s] || s;
-}
-
-// ── Set today as default date ─────────────────────
-document.getElementById('date-applied').value = new Date().toISOString().split('T')[0];
-
-// ── Initial Render ────────────────────────────────
-render();

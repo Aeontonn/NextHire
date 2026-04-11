@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LIA Tracker — Internship Applications</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">&#127891;</span>
+        <span class="logo-text">LIA<span class="logo-accent">Tracker</span></span>
+      </div>
+      <p class="header-sub">Track your internship applications</p>
+    </div>
+  </header>
+
+  <!-- Stats Bar -->
+  <section class="stats-bar">
+    <div class="stat-card" id="stat-total">
+      <span class="stat-num" id="s-total">0</span>
+      <span class="stat-label">Total</span>
+    </div>
+    <div class="stat-card" id="stat-applied">
+      <span class="stat-num" id="s-applied">0</span>
+      <span class="stat-label">Applied</span>
+    </div>
+    <div class="stat-card" id="stat-interview">
+      <span class="stat-num" id="s-interview">0</span>
+      <span class="stat-label">Interviews</span>
+    </div>
+    <div class="stat-card" id="stat-offer">
+      <span class="stat-num" id="s-offer">0</span>
+      <span class="stat-label">Offers</span>
+    </div>
+    <div class="stat-card" id="stat-rejected">
+      <span class="stat-num" id="s-rejected">0</span>
+      <span class="stat-label">Rejected</span>
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <main class="main-layout">
+
+    <!-- Add Application Form -->
+    <aside class="form-panel">
+      <h2 class="panel-title" id="form-title">Add Application</h2>
+      <form id="app-form" autocomplete="off">
+        <input type="hidden" id="edit-id" />
+
+        <div class="form-group">
+          <label for="company">Company <span class="req">*</span></label>
+          <input type="text" id="company" placeholder="e.g. Spotify" required />
+        </div>
+
+        <div class="form-group">
+          <label for="role">Role / Position <span class="req">*</span></label>
+          <input type="text" id="role" placeholder="e.g. Software Engineer Intern" required />
+        </div>
+
+        <div class="form-group">
+          <label for="location">Location</label>
+          <input type="text" id="location" placeholder="e.g. Stockholm, Remote" />
+        </div>
+
+        <div class="form-group">
+          <label for="date-applied">Date Applied <span class="req">*</span></label>
+          <input type="date" id="date-applied" required />
+        </div>
+
+        <div class="form-group">
+          <label for="deadline">Application Deadline</label>
+          <input type="date" id="deadline" />
+        </div>
+
+        <div class="form-group">
+          <label for="status">Status <span class="req">*</span></label>
+          <select id="status" required>
+            <option value="Applied">Applied</option>
+            <option value="Interview">Interview Scheduled</option>
+            <option value="Interviewed">Interviewed</option>
+            <option value="Offer">Offer Received</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Withdrawn">Withdrawn</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="link">Job Posting URL</label>
+          <input type="url" id="link" placeholder="https://..." />
+        </div>
+
+        <div class="form-group">
+          <label for="notes">Notes</label>
+          <textarea id="notes" rows="3" placeholder="Referral, recruiter name, follow-up reminders..."></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="submit-btn">Add Application</button>
+          <button type="button" class="btn btn-ghost" id="cancel-btn" style="display:none">Cancel</button>
+        </div>
+      </form>
+    </aside>
+
+    <!-- Applications List -->
+    <section class="list-panel">
+      <div class="list-header">
+        <h2 class="panel-title">Applications</h2>
+        <div class="list-controls">
+          <input type="text" id="search" placeholder="&#128269; Search company or role..." class="search-input" />
+          <select id="filter-status" class="filter-select">
+            <option value="">All Statuses</option>
+            <option value="Applied">Applied</option>
+            <option value="Interview">Interview Scheduled</option>
+            <option value="Interviewed">Interviewed</option>
+            <option value="Offer">Offer Received</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Withdrawn">Withdrawn</option>
+          </select>
+          <select id="sort-by" class="filter-select">
+            <option value="date-desc">Newest First</option>
+            <option value="date-asc">Oldest First</option>
+            <option value="company">Company A–Z</option>
+            <option value="status">Status</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="app-list" class="app-list">
+        <!-- Cards injected here -->
+      </div>
+
+      <div id="empty-state" class="empty-state" style="display:none">
+        <div class="empty-icon">&#128203;</div>
+        <p>No applications yet.<br />Add your first one using the form!</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Edit/Delete Modal -->
+  <div id="modal-overlay" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <h3 id="modal-title">Application Details</h3>
+      <div id="modal-body"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="modal-edit-btn">Edit</button>
+        <button class="btn btn-danger" id="modal-delete-btn">Delete</button>
+        <button class="btn btn-ghost" id="modal-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" style="display:none"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

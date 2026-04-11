@@ -3,14 +3,14 @@
    ============================================================ */
 
 :root {
-  --bg:         #07050f;
-  --surface:    #0f0c1c;
-  --surface-2:  #161228;
-  --surface-3:  #1e1935;
-  --border:     #231d3a;
-  --border-2:   #2e2750;
+  --bg:         #272727;
+  --surface:    #2f2f2f;
+  --surface-2:  #363636;
+  --surface-3:  #3e3e3e;
+  --border:     #3a3a3a;
+  --border-2:   #484848;
 
-  --header-bg:  #0d1f35;
+  --header-bg:  #303030;
 
   --purple-700: #5b21b6;
   --purple-600: #7c3aed;
@@ -24,11 +24,11 @@
   --orange: #fb923c;
   --green:  #34d399;
   --red:    #f87171;
-  --muted:  #6b6585;
+  --muted:  #909090;
 
-  --text:       #f0eeff;
-  --text-2:     #b8b0d8;
-  --text-3:     #7a7298;
+  --text:       #f0f0f0;
+  --text-2:     #b8b8b8;
+  --text-3:     #808080;
 
   --brand:          #C2E9FF;
   --brand-btn-text: #0d3a5c;
@@ -373,12 +373,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   font-variant-numeric: tabular-nums;
 }
 
-.stat-total      .stat-num { color: var(--purple-300); }
-.stat-planning   .stat-num { color: var(--purple-400); }
-.stat-applied    .stat-num { color: var(--blue); }
-.stat-interviews .stat-num { color: var(--yellow); }
-.stat-offers     .stat-num { color: var(--green); }
-.stat-rejected   .stat-num { color: var(--red); }
+.stat-total      .stat-num { color: #E2FFD6; }
+.stat-planning   .stat-num { color: #FFEBB3; }
+.stat-applied    .stat-num { color: #FFD9F1; }
+.stat-interviews .stat-num { color: #E3D9FF; }
+.stat-offers     .stat-num { color: #D9E7FF; }
+.stat-rejected   .stat-num { color: #FFB8B8; }
 
 .stat-label {
   font-size: 0.7rem;
@@ -579,7 +579,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background: var(--surface-2);
   border-color: var(--border-2);
   transform: translateY(-1px);
-  box-shadow: 0 4px 18px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
 }
 
 .app-card.s-Planning    { border-left-color: var(--purple-500); }

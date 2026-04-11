@@ -70,10 +70,12 @@ authTabs.forEach(tab => {
   tab.addEventListener('click', () => {
     authMode = tab.dataset.tab;
     authTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === authMode));
-    confirmField.style.display = authMode === 'signup' ? 'flex' : 'none';
-    authBtnText.textContent    = authMode === 'signup' ? 'Create Account' : 'Sign In';
-    authConfirm.required       = authMode === 'signup';
+    confirmField.style.display    = authMode === 'signup' ? 'flex' : 'none';
+    authBtnText.textContent       = authMode === 'signup' ? 'Create Account' : 'Sign In';
+    authConfirm.required          = authMode === 'signup';
+    authPassword.autocomplete     = authMode === 'signup' ? 'new-password' : 'current-password';
     hideAuthError();
+    authForm.reset();
   });
 });
 
@@ -108,11 +110,21 @@ authForm.addEventListener('submit', async (e) => {
     if (authMode === 'login') {
       const { error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      // onAuthStateChange handles the rest
     } else {
-      const { error } = await sb.auth.signUp({ email, password });
+      const { data, error } = await sb.auth.signUp({ email, password });
       if (error) throw error;
-      showAuthError('✅ Account created! Check your email to confirm, then sign in.', true);
-      setAuthLoading(false);
+
+      if (data.session) {
+        // Email confirmation is OFF — user is signed in immediately, onAuthStateChange handles routing
+      } else {
+        // Email confirmation is ON — tell the user to check their inbox
+        showAuthError(
+          '✅ Account created! Please check your email inbox (and spam) for a confirmation link, then come back and sign in.',
+          true
+        );
+        setAuthLoading(false);
+      }
       return;
     }
   } catch (err) {
@@ -140,9 +152,14 @@ function hideAuthError() {
 }
 
 function friendlyAuthError(msg) {
-  if (msg.includes('Invalid login'))   return 'Incorrect email or password.';
-  if (msg.includes('already registered')) return 'An account with this email already exists.';
-  if (msg.includes('Email not confirmed')) return 'Please confirm your email before signing in.';
+  if (msg.includes('Invalid login') || msg.includes('invalid_credentials'))
+    return 'Incorrect email or password.';
+  if (msg.includes('already registered') || msg.includes('already been registered'))
+    return 'An account with this email already exists. Try signing in instead.';
+  if (msg.includes('Email not confirmed'))
+    return 'Please confirm your email first — check your inbox (and spam folder).';
+  if (msg.includes('User already registered'))
+    return 'An account with this email already exists. Try signing in instead.';
   return msg;
 }
 

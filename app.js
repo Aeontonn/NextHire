@@ -13,6 +13,8 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 let apps      = [];
 let currentUser = null;
 let editingId = null;
+let imgFile   = null;   // new File pending upload
+let imgUrl    = null;   // URL to store (existing or newly uploaded)
 
 // ── DOM ───────────────────────────────────────────
 const authScreen    = document.getElementById('auth-screen');
@@ -67,6 +69,14 @@ const detailEdit    = document.getElementById('detail-edit-btn');
 const detailDelete  = document.getElementById('detail-delete-btn');
 
 const toast         = document.getElementById('toast');
+
+// Image upload
+const imgUploadArea  = document.getElementById('img-upload-area');
+const imgInput       = document.getElementById('img-input');
+const imgPlaceholder = document.getElementById('img-placeholder');
+const imgPreviewWrap = document.getElementById('img-preview-wrap');
+const imgPreviewEl   = document.getElementById('img-preview');
+const imgRemoveBtn   = document.getElementById('img-remove-btn');
 
 // ── Auth: tab switching ───────────────────────────
 let authMode = 'login';
@@ -224,6 +234,25 @@ appForm.addEventListener('submit', async (e) => {
   setModalLoading(true);
 
   const status = val('status');
+
+  // ── Image: upload new file or clean up removed one ──
+  let finalImgUrl = imgUrl;
+  if (imgFile) {
+    try {
+      if (editingId) {
+        const old = apps.find(a => a.id === editingId);
+        if (old?.image_url) await removeAppImage(old.image_url);
+      }
+      finalImgUrl = await uploadAppImage(imgFile);
+    } catch {
+      showToast('Image upload failed — saving without image.');
+      finalImgUrl = null;
+    }
+  } else if (editingId && imgUrl === null) {
+    const old = apps.find(a => a.id === editingId);
+    if (old?.image_url) await removeAppImage(old.image_url);
+  }
+
   const payload = {
     company:      val('company'),
     role:         val('role'),
@@ -233,6 +262,7 @@ appForm.addEventListener('submit', async (e) => {
     status,
     link:         val('link')      || null,
     notes:        val('notes')     || null,
+    image_url:    finalImgUrl      || null,
     user_id:      currentUser.id,
     updated_at:   new Date().toISOString(),
   };
@@ -261,6 +291,7 @@ async function deleteApp(id) {
   const { error } = await sb.from('applications').delete().eq('id', id);
   if (error) { showToast('Error deleting — please try again.'); return; }
 
+  if (app?.image_url) await removeAppImage(app.image_url);
   showToast('Application deleted.');
   closeDetailModal();
   await fetchApps();
@@ -377,6 +408,7 @@ function openAddModal(defaultStatus = 'Applied') {
   editingId = null;
   appForm.reset();
   editIdField.value = '';
+  imgFile = null; imgUrl = null; resetImgUI();
   setVal('status', defaultStatus);
   if (defaultStatus !== 'Planning') {
     document.getElementById('date-applied').value = today();
@@ -399,6 +431,9 @@ function openEditModal(id) {
   setVal('status',       app.status);
   setVal('link',         app.link);
   setVal('notes',        app.notes);
+  imgFile = null;
+  imgUrl  = app.image_url || null;
+  if (imgUrl) showImgPreview(imgUrl); else resetImgUI();
   modalTitle.textContent   = 'Edit Application';
   modalBtnText.textContent = 'Save Changes';
   modalOverlay.style.display = 'flex';
@@ -448,6 +483,7 @@ function openDetailModal(id) {
       ${app.deadline ? `<div class="detail-field"><label>Deadline</label><div class="val">${fmtDate(app.deadline)}</div></div>` : ''}
       ${app.link ? (() => { const sl = safeUrl(app.link); return sl ? `<div class="detail-field full"><label>Job Posting</label><div class="val"><a href="${esc(sl)}" target="_blank" rel="noopener noreferrer">${esc(app.link)}</a></div></div>` : `<div class="detail-field full"><label>Job Posting</label><div class="val" style="color:var(--text-3);font-size:0.88rem">${esc(app.link)}<br><span style="color:var(--red);font-size:0.78rem">⚠ Not a valid http/https URL</span></div></div>`; })() : ''}
       ${app.notes ? `<div class="detail-field full"><label>Notes</label><div class="val notes-val">${esc(app.notes)}</div></div>` : ''}
+      ${app.image_url ? `<div class="detail-field full"><label>Attachment</label><img class="detail-image" src="${esc(app.image_url)}" alt="Attachment" loading="lazy" /></div>` : ''}
     </div>
   `;
 
@@ -684,6 +720,61 @@ function showDayDetail(dateStr, dayEvents) {
 
   calDayDetail.style.display = 'block';
 }
+
+// ── Image Upload ──────────────────────────────────
+function handleImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) { showToast('Please select an image file.'); return; }
+  if (file.size > 5 * 1024 * 1024) { showToast('Image must be under 5 MB.'); return; }
+  imgFile = file;
+  showImgPreview(URL.createObjectURL(file));
+}
+
+function showImgPreview(src) {
+  imgPreviewEl.src = src;
+  imgPlaceholder.style.display = 'none';
+  imgPreviewWrap.style.display = 'block';
+}
+
+function resetImgUI() {
+  imgInput.value   = '';
+  imgPreviewEl.src = '';
+  imgPreviewWrap.style.display = 'none';
+  imgPlaceholder.style.display = 'flex';
+}
+
+async function uploadAppImage(file) {
+  const ext  = file.name.split('.').pop().toLowerCase() || 'jpg';
+  const path = `${currentUser.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const { error } = await sb.storage.from('application-images').upload(path, file);
+  if (error) throw error;
+  return sb.storage.from('application-images').getPublicUrl(path).data.publicUrl;
+}
+
+async function removeAppImage(url) {
+  if (!url) return;
+  try {
+    const marker = '/application-images/';
+    const idx = url.indexOf(marker);
+    if (idx === -1) return;
+    await sb.storage.from('application-images').remove([url.slice(idx + marker.length)]);
+  } catch {}
+}
+
+// Image event listeners
+imgUploadArea.addEventListener('click', () => imgInput.click());
+imgInput.addEventListener('change', (e) => { if (e.target.files[0]) handleImageFile(e.target.files[0]); });
+imgRemoveBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  imgFile = null; imgUrl = null; resetImgUI();
+});
+imgUploadArea.addEventListener('dragover',  (e) => { e.preventDefault(); imgUploadArea.classList.add('drag-over'); });
+imgUploadArea.addEventListener('dragleave', ()  => imgUploadArea.classList.remove('drag-over'));
+imgUploadArea.addEventListener('drop', (e) => {
+  e.preventDefault();
+  imgUploadArea.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleImageFile(file);
+});
 
 // ── Toast ─────────────────────────────────────────
 let toastTimer;

@@ -135,28 +135,40 @@
         <p style="margin-top:16px;color:var(--muted)">Loading…</p>
       </div>
       <div id="boards" class="boards" style="display:none">
-        <!-- Planning column -->
-        <div class="board-col">
-          <div class="board-header">
-            <span class="board-title">Planning to Apply</span>
-            <span class="board-count" id="planning-count">0</span>
-          </div>
-          <div id="planning-list" class="app-list"></div>
-          <div id="planning-empty" class="empty-state empty-state-sm" style="display:none">
-            <div class="empty-icon">💡</div>
-            <p>Companies you want to apply to.</p>
-          </div>
-        </div>
         <!-- Applications column -->
         <div class="board-col">
           <div class="board-header">
-            <span class="board-title">Applications</span>
-            <span class="board-count" id="applied-count">0</span>
+            <div class="board-header-left">
+              <span class="board-title">Applications</span>
+              <span class="board-count" id="applied-count">0</span>
+            </div>
+            <button class="btn-board-add" id="open-add-applied-btn">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M10 4a1 1 0 011 1v4h4a1 1 0 110 2h-4v4a1 1 0 11-2 0v-4H5a1 1 0 110-2h4V5a1 1 0 011-1z"/></svg>
+              Add
+            </button>
           </div>
           <div id="app-list" class="app-list"></div>
           <div id="empty-state" class="empty-state empty-state-sm" style="display:none">
             <div class="empty-icon">📋</div>
             <p>No applications yet.</p>
+          </div>
+        </div>
+        <!-- Planning column -->
+        <div class="board-col">
+          <div class="board-header">
+            <div class="board-header-left">
+              <span class="board-title">Planning to Apply</span>
+              <span class="board-count" id="planning-count">0</span>
+            </div>
+            <button class="btn-board-add" id="open-add-planning-btn">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M10 4a1 1 0 011 1v4h4a1 1 0 110 2h-4v4a1 1 0 11-2 0v-4H5a1 1 0 110-2h4V5a1 1 0 011-1z"/></svg>
+              Add
+            </button>
+          </div>
+          <div id="planning-list" class="app-list"></div>
+          <div id="planning-empty" class="empty-state empty-state-sm" style="display:none">
+            <div class="empty-icon">💡</div>
+            <p>Companies you want to apply to.</p>
           </div>
         </div>
       </div>

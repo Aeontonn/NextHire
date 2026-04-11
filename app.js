@@ -369,15 +369,20 @@ function updateStats() {
 }
 
 // ── Add Modal ─────────────────────────────────────
-openAddBtn.addEventListener('click', () => openAddModal());
+openAddBtn.addEventListener('click', () => openAddModal('Applied'));
+document.getElementById('open-add-applied-btn').addEventListener('click',  () => openAddModal('Applied'));
+document.getElementById('open-add-planning-btn').addEventListener('click', () => openAddModal('Planning'));
 
-function openAddModal() {
+function openAddModal(defaultStatus = 'Applied') {
   editingId = null;
   appForm.reset();
   editIdField.value = '';
-  document.getElementById('date-applied').value = today();
-  modalTitle.textContent    = 'Add Application';
-  modalBtnText.textContent  = 'Add Application';
+  setVal('status', defaultStatus);
+  if (defaultStatus !== 'Planning') {
+    document.getElementById('date-applied').value = today();
+  }
+  modalTitle.textContent    = defaultStatus === 'Planning' ? 'Add to Planning' : 'Add Application';
+  modalBtnText.textContent  = defaultStatus === 'Planning' ? 'Add to Planning' : 'Add Application';
   modalOverlay.style.display = 'flex';
   setTimeout(() => document.getElementById('company').focus(), 80);
 }

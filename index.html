@@ -77,6 +77,10 @@
         <div class="stat-label">Total</div>
       </div>
       <div class="stat">
+        <div class="stat-num purple" id="s-planning">0</div>
+        <div class="stat-label">Planning</div>
+      </div>
+      <div class="stat">
         <div class="stat-num blue" id="s-applied">0</div>
         <div class="stat-label">Applied</div>
       </div>
@@ -103,6 +107,7 @@
         </div>
         <select id="filter-status" class="select-ctrl">
           <option value="">All Statuses</option>
+          <option value="Planning">Planning to Apply</option>
           <option value="Applied">Applied</option>
           <option value="Interview">Interview Scheduled</option>
           <option value="Interviewed">Interviewed</option>
@@ -125,15 +130,35 @@
 
     <!-- App List -->
     <main class="app-main">
-      <div id="app-list" class="app-list"></div>
-      <div id="empty-state" class="empty-state" style="display:none">
-        <div class="empty-icon">📋</div>
-        <h3>No applications yet</h3>
-        <p>Hit <strong>Add Application</strong> to start tracking.</p>
-      </div>
       <div id="loading-state" class="empty-state">
         <div class="spinner large"></div>
         <p style="margin-top:16px;color:var(--muted)">Loading…</p>
+      </div>
+      <div id="boards" class="boards" style="display:none">
+        <!-- Planning column -->
+        <div class="board-col">
+          <div class="board-header">
+            <span class="board-title">Planning to Apply</span>
+            <span class="board-count" id="planning-count">0</span>
+          </div>
+          <div id="planning-list" class="app-list"></div>
+          <div id="planning-empty" class="empty-state empty-state-sm" style="display:none">
+            <div class="empty-icon">💡</div>
+            <p>Companies you want to apply to.</p>
+          </div>
+        </div>
+        <!-- Applications column -->
+        <div class="board-col">
+          <div class="board-header">
+            <span class="board-title">Applications</span>
+            <span class="board-count" id="applied-count">0</span>
+          </div>
+          <div id="app-list" class="app-list"></div>
+          <div id="empty-state" class="empty-state empty-state-sm" style="display:none">
+            <div class="empty-icon">📋</div>
+            <p>No applications yet.</p>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -166,6 +191,7 @@
           <div class="field">
             <label for="status">Status <span class="req">*</span></label>
             <select id="status" required>
+              <option value="Planning">Planning to Apply</option>
               <option value="Applied">Applied</option>
               <option value="Interview">Interview Scheduled</option>
               <option value="Interviewed">Interviewed</option>
@@ -174,9 +200,9 @@
               <option value="Withdrawn">Withdrawn</option>
             </select>
           </div>
-          <div class="field">
-            <label for="date-applied">Date Applied <span class="req">*</span></label>
-            <input type="date" id="date-applied" required />
+          <div class="field" id="date-applied-field">
+            <label for="date-applied">Date Applied</label>
+            <input type="date" id="date-applied" />
           </div>
           <div class="field">
             <label for="deadline">Deadline</label>

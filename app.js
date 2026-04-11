@@ -39,8 +39,13 @@ const filterStatus  = document.getElementById('filter-status');
 const sortBy        = document.getElementById('sort-by');
 const openAddBtn    = document.getElementById('open-add-btn');
 const appList       = document.getElementById('app-list');
+const planningList  = document.getElementById('planning-list');
 const emptyState    = document.getElementById('empty-state');
+const planningEmpty = document.getElementById('planning-empty');
+const boards        = document.getElementById('boards');
 const loadingState  = document.getElementById('loading-state');
+const planningCount = document.getElementById('planning-count');
+const appliedCount  = document.getElementById('applied-count');
 
 // Add/Edit modal
 const modalOverlay  = document.getElementById('modal-overlay');
@@ -206,6 +211,7 @@ async function fetchApps() {
     .order('created_at', { ascending: false });
 
   loadingState.style.display = 'none';
+  boards.style.display = 'grid';
 
   if (error) { showToast('Failed to load applications.'); return; }
   apps = data || [];
@@ -217,13 +223,14 @@ appForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   setModalLoading(true);
 
+  const status = val('status');
   const payload = {
     company:      val('company'),
     role:         val('role'),
     location:     val('location') || null,
-    date_applied: val('date-applied'),
+    date_applied: val('date-applied') || (status === 'Planning' ? today() : null),
     deadline:     val('deadline')  || null,
-    status:       val('status'),
+    status,
     link:         val('link')      || null,
     notes:        val('notes')     || null,
     user_id:      currentUser.id,
@@ -284,62 +291,77 @@ function render() {
     return 0;
   });
 
+  const planning = filtered.filter(a => a.status === 'Planning');
+  const applied  = filtered.filter(a => a.status !== 'Planning');
+
+  // Planning column
+  planningList.innerHTML = '';
+  planningEmpty.style.display = planning.length === 0 ? 'block' : 'none';
+  planning.forEach((app, i) => planningList.appendChild(buildCard(app, i)));
+  planningCount.textContent = planning.length;
+
+  // Applications column
   appList.innerHTML = '';
-  emptyState.style.display = filtered.length === 0 ? 'block' : 'none';
+  emptyState.style.display = applied.length === 0 ? 'block' : 'none';
+  applied.forEach((app, i) => appList.appendChild(buildCard(app, i)));
+  appliedCount.textContent = applied.length;
+}
 
-  filtered.forEach((app, i) => {
-    const card = document.createElement('div');
-    card.className = `app-card s-${app.status}`;
-    card.style.animationDelay = `${i * 30}ms`;
+function buildCard(app, i) {
+  const card = document.createElement('div');
+  card.className = `app-card s-${app.status}`;
+  card.style.animationDelay = `${i * 30}ms`;
 
-    const initials = app.company.slice(0,2).toUpperCase();
-    const avatarBg = avatarColor(app.company);
-    const deadline = app.deadline
-      ? `<span>📅 Deadline ${fmtDate(app.deadline)}</span>` : '';
+  const initials = app.company.slice(0,2).toUpperCase();
+  const avatarBg = avatarColor(app.company);
+  const deadline = app.deadline
+    ? `<span>📅 Deadline ${fmtDate(app.deadline)}</span>` : '';
+  const dateMeta = app.status === 'Planning'
+    ? (app.deadline ? '' : '')
+    : `<span>📅 ${fmtDate(app.date_applied)}</span><span>${daysAgo(app.date_applied)}</span>`;
 
-    card.innerHTML = `
-      <div class="card-avatar" style="background:${avatarBg}">${esc(initials)}</div>
-      <div class="card-body">
-        <div class="card-top">
-          <span class="card-company">${esc(app.company)}</span>
-        </div>
-        <div class="card-role">${esc(app.role)}</div>
-        <div class="card-meta">
-          ${app.location ? `<span>📍 ${esc(app.location)}</span>` : ''}
-          <span>📅 ${fmtDate(app.date_applied)}</span>
-          <span>${daysAgo(app.date_applied)}</span>
-          ${deadline}
-        </div>
+  card.innerHTML = `
+    <div class="card-avatar" style="background:${avatarBg}">${esc(initials)}</div>
+    <div class="card-body">
+      <div class="card-top">
+        <span class="card-company">${esc(app.company)}</span>
       </div>
-      <div class="card-right">
-        <span class="badge badge-${app.status}">${statusLabel(app.status)}</span>
-        <div class="card-actions">
-          <button class="btn-icon edit-btn" title="Edit" data-id="${app.id}">✏️</button>
-          <button class="btn-icon danger del-btn" title="Delete" data-id="${app.id}">🗑</button>
-        </div>
+      <div class="card-role">${esc(app.role)}</div>
+      <div class="card-meta">
+        ${app.location ? `<span>📍 ${esc(app.location)}</span>` : ''}
+        ${dateMeta}
+        ${deadline}
       </div>
-    `;
+    </div>
+    <div class="card-right">
+      <span class="badge badge-${app.status}">${statusLabel(app.status)}</span>
+      <div class="card-actions">
+        <button class="btn-icon edit-btn" title="Edit" data-id="${app.id}">✏️</button>
+        <button class="btn-icon danger del-btn" title="Delete" data-id="${app.id}">🗑</button>
+      </div>
+    </div>
+  `;
 
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('.edit-btn') || e.target.closest('.del-btn')) return;
-      openDetailModal(app.id);
-    });
-    card.querySelector('.edit-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      openEditModal(app.id);
-    });
-    card.querySelector('.del-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteApp(app.id);
-    });
-
-    appList.appendChild(card);
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('.edit-btn') || e.target.closest('.del-btn')) return;
+    openDetailModal(app.id);
   });
+  card.querySelector('.edit-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openEditModal(app.id);
+  });
+  card.querySelector('.del-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteApp(app.id);
+  });
+
+  return card;
 }
 
 // ── Stats ─────────────────────────────────────────
 function updateStats() {
   document.getElementById('s-total').textContent    = apps.length;
+  document.getElementById('s-planning').textContent = apps.filter(a => a.status === 'Planning').length;
   document.getElementById('s-applied').textContent  = apps.filter(a => a.status === 'Applied').length;
   document.getElementById('s-interview').textContent = apps.filter(a => a.status === 'Interview' || a.status === 'Interviewed').length;
   document.getElementById('s-offer').textContent    = apps.filter(a => a.status === 'Offer').length;
@@ -471,7 +493,7 @@ function esc(s) {
 }
 
 function statusLabel(s) {
-  const m = { Applied:'Applied', Interview:'Interview Scheduled', Interviewed:'Interviewed', Offer:'Offer Received', Rejected:'Rejected', Withdrawn:'Withdrawn' };
+  const m = { Planning:'Planning', Applied:'Applied', Interview:'Interview Scheduled', Interviewed:'Interviewed', Offer:'Offer Received', Rejected:'Rejected', Withdrawn:'Withdrawn' };
   return m[s] || s;
 }
 

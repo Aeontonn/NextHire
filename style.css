@@ -341,6 +341,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .stat-num.yellow { color: var(--yellow); }
 .stat-num.green  { color: var(--green); }
 .stat-num.red    { color: var(--red); }
+.stat-num.purple { color: var(--purple-400); }
 
 .stat-label {
   font-size: 0.7rem;
@@ -434,9 +435,61 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* ── App Main ────────────────────────────────────── */
 .app-main {
-  max-width: 1100px;
+  max-width: 1300px;
   margin: 28px auto 60px;
   padding: 0 24px;
+}
+
+/* ── Two-column board layout ─────────────────────── */
+.boards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.board-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.board-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-2);
+}
+
+.board-count {
+  background: var(--surface-3);
+  border: 1px solid var(--border-2);
+  color: var(--text-3);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 100px;
+}
+
+.empty-state-sm {
+  padding: 32px 20px;
+}
+.empty-state-sm .empty-icon { font-size: 1.8rem; margin-bottom: 8px; }
+.empty-state-sm p { font-size: 0.85rem; }
+
+@media (max-width: 800px) {
+  .boards { grid-template-columns: 1fr; }
 }
 
 /* ── Application Cards ───────────────────────────── */
@@ -470,6 +523,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 }
 
+.app-card.s-Planning    { border-left-color: var(--purple-400); }
 .app-card.s-Applied     { border-left-color: var(--blue); }
 .app-card.s-Interview   { border-left-color: var(--yellow); }
 .app-card.s-Interviewed { border-left-color: var(--orange); }
@@ -569,6 +623,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   white-space: nowrap;
   text-transform: uppercase;
 }
+.badge-Planning    { background: rgba(167,139,250,0.12); color: var(--purple-400); border: 1px solid rgba(167,139,250,0.25); }
 .badge-Applied     { background: rgba(96,165,250,0.12);  color: var(--blue);   border: 1px solid rgba(96,165,250,0.25); }
 .badge-Interview   { background: rgba(251,191,36,0.12);  color: var(--yellow); border: 1px solid rgba(251,191,36,0.25); }
 .badge-Interviewed { background: rgba(251,146,60,0.12);  color: var(--orange); border: 1px solid rgba(251,146,60,0.25); }

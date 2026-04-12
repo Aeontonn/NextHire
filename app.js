@@ -776,6 +776,168 @@ imgUploadArea.addEventListener('drop', (e) => {
   if (file) handleImageFile(file);
 });
 
+// ── Navigation ────────────────────────────────────
+const navTabs = document.querySelectorAll('.nav-tab');
+const viewApplications = document.getElementById('view-applications');
+const viewTodos        = document.getElementById('view-todos');
+
+navTabs.forEach(tab => {
+  tab.addEventListener('click', () => switchView(tab.dataset.view));
+});
+
+function switchView(view) {
+  navTabs.forEach(t => t.classList.toggle('active', t.dataset.view === view));
+  viewApplications.style.display = view === 'applications' ? 'block' : 'none';
+  viewTodos.style.display        = view === 'todos'        ? 'block' : 'none';
+  if (view === 'todos') fetchTodos();
+}
+
+// ── Todos: state ──────────────────────────────────
+let todos = [];
+
+async function fetchTodos() {
+  const { data, error } = await sb
+    .from('todos')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (error) { showToast('Failed to load todos.'); return; }
+  todos = data || [];
+  renderTodos();
+}
+
+function renderTodos() {
+  renderTodoSection('daily');
+  renderTodoSection('weekly');
+}
+
+function renderTodoSection(type) {
+  const list  = document.getElementById(`todo-list-${type}`);
+  const count = document.getElementById(`todo-count-${type}`);
+  const empty = document.getElementById(`todo-empty-${type}`);
+  const sectionTodos = todos.filter(t => t.type === type);
+
+  count.textContent = sectionTodos.filter(t => t.status !== 'done').length;
+
+  // Remove all items except the empty placeholder
+  [...list.children].forEach(child => {
+    if (!child.classList.contains('todo-empty')) child.remove();
+  });
+
+  empty.style.display = sectionTodos.length === 0 ? 'flex' : 'none';
+  sectionTodos.forEach(todo => list.insertBefore(buildTodoItem(todo), empty));
+}
+
+function buildTodoItem(todo) {
+  const item = document.createElement('div');
+  item.className = `todo-item todo-${todo.status}`;
+
+  const checkIcon = todo.status === 'done'
+    ? '<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>'
+    : '<circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/>';
+
+  const doingBtn = todo.status !== 'done'
+    ? `<button class="todo-doing-btn${todo.status === 'doing' ? ' active' : ''}" title="${todo.status === 'doing' ? 'Back to todo' : 'Mark as doing'}">Doing</button>`
+    : '';
+
+  item.innerHTML = `
+    <button class="todo-check${todo.status === 'done' ? ' checked' : ''}" title="${todo.status === 'done' ? 'Mark undone' : 'Mark done'}">
+      <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">${checkIcon}</svg>
+    </button>
+    <span class="todo-text">${esc(todo.text)}</span>
+    <div class="todo-actions">
+      ${doingBtn}
+      <button class="todo-edit-btn btn-icon" title="Edit">✏️</button>
+      <button class="todo-delete-btn btn-icon danger" title="Delete">🗑</button>
+    </div>
+  `;
+
+  item.querySelector('.todo-check').addEventListener('click', () => {
+    updateTodoStatus(todo.id, todo.status === 'done' ? 'todo' : 'done');
+  });
+
+  const doingEl = item.querySelector('.todo-doing-btn');
+  if (doingEl) {
+    doingEl.addEventListener('click', () => {
+      updateTodoStatus(todo.id, todo.status === 'doing' ? 'todo' : 'doing');
+    });
+  }
+
+  item.querySelector('.todo-edit-btn').addEventListener('click', () => startEditTodo(todo, item));
+  item.querySelector('.todo-delete-btn').addEventListener('click', () => deleteTodo(todo.id));
+
+  return item;
+}
+
+function startEditTodo(todo, item) {
+  const textEl = item.querySelector('.todo-text');
+  const input  = document.createElement('input');
+  input.type      = 'text';
+  input.className = 'todo-edit-input';
+  input.value     = todo.text;
+  textEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let saved = false;
+  const save = async () => {
+    if (saved) return;
+    saved = true;
+    const newText = input.value.trim();
+    if (!newText || newText === todo.text) { input.replaceWith(textEl); return; }
+    await updateTodoText(todo.id, newText);
+  };
+
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { saved = true; input.replaceWith(textEl); }
+  });
+}
+
+async function updateTodoStatus(id, status) {
+  const { error } = await sb.from('todos')
+    .update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { showToast('Failed to update.'); return; }
+  await fetchTodos();
+}
+
+async function updateTodoText(id, text) {
+  const { error } = await sb.from('todos')
+    .update({ text, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { showToast('Failed to update.'); return; }
+  await fetchTodos();
+}
+
+async function deleteTodo(id) {
+  const { error } = await sb.from('todos').delete().eq('id', id);
+  if (error) { showToast('Failed to delete.'); return; }
+  todos = todos.filter(t => t.id !== id);
+  renderTodos();
+}
+
+// ── Todos: add handlers ───────────────────────────
+['daily', 'weekly'].forEach(type => {
+  const input = document.getElementById(`todo-input-${type}`);
+  const btn   = document.getElementById(`todo-add-btn-${type}`);
+
+  const addTodo = async () => {
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    const { error } = await sb.from('todos').insert({
+      user_id: currentUser.id,
+      text,
+      type,
+      status: 'todo',
+    });
+    if (error) { showToast('Failed to add task.'); return; }
+    await fetchTodos();
+  };
+
+  btn.addEventListener('click', addTodo);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') addTodo(); });
+});
+
 // ── Toast ─────────────────────────────────────────
 let toastTimer;
 function showToast(msg) {

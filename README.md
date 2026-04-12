@@ -1,6 +1,6 @@
 # NextHire
 
-A polished job application tracker with user accounts and real-time sync across all your devices. Built with plain HTML/CSS/JS and powered by Supabase.
+A job application tracker with user accounts and real-time sync across all your devices. Built with plain HTML/CSS/JS and powered by Supabase.
 
 [aeontonn.github.io/NextHire/](https://aeontonn.github.io/NextHire/)
 

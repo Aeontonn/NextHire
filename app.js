@@ -13,8 +13,9 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 let apps      = [];
 let currentUser = null;
 let editingId = null;
-let imgFile   = null;   // new File pending upload
-let imgUrl    = null;   // URL to store (existing or newly uploaded)
+let imgExistingUrls = []; // URLs already saved in DB
+let imgNewFiles     = []; // new File objects pending upload
+let imgRemovedUrls  = []; // existing URLs to delete from storage on save
 
 // ── DOM ───────────────────────────────────────────
 const authScreen    = document.getElementById('auth-screen');
@@ -71,12 +72,9 @@ const detailDelete  = document.getElementById('detail-delete-btn');
 const toast         = document.getElementById('toast');
 
 // Image upload
-const imgUploadArea  = document.getElementById('img-upload-area');
-const imgInput       = document.getElementById('img-input');
-const imgPlaceholder = document.getElementById('img-placeholder');
-const imgPreviewWrap = document.getElementById('img-preview-wrap');
-const imgPreviewEl   = document.getElementById('img-preview');
-const imgRemoveBtn   = document.getElementById('img-remove-btn');
+const imgInput   = document.getElementById('img-input');
+const imgGallery = document.getElementById('img-gallery');
+const imgAddTile = document.getElementById('img-add-tile');
 
 // ── Auth: tab switching ───────────────────────────
 let authMode = 'login';
@@ -235,23 +233,21 @@ appForm.addEventListener('submit', async (e) => {
 
   const status = val('status');
 
-  // ── Image: upload new file or clean up removed one ──
-  let finalImgUrl = imgUrl;
-  if (imgFile) {
+  // ── Image: delete removed, upload new ──
+  for (const url of imgRemovedUrls) await removeAppImage(url);
+
+  const uploadedUrls = [];
+  for (const file of imgNewFiles) {
     try {
-      if (editingId) {
-        const old = apps.find(a => a.id === editingId);
-        if (old?.image_url) await removeAppImage(old.image_url);
-      }
-      finalImgUrl = await uploadAppImage(imgFile);
+      uploadedUrls.push(await uploadAppImage(file));
     } catch {
-      showToast('Image upload failed — saving without image.');
-      finalImgUrl = null;
+      showToast('One image failed to upload — skipping it.');
     }
-  } else if (editingId && imgUrl === null) {
-    const old = apps.find(a => a.id === editingId);
-    if (old?.image_url) await removeAppImage(old.image_url);
   }
+  const finalUrls = [...imgExistingUrls.filter(u => !imgRemovedUrls.includes(u)), ...uploadedUrls];
+  const finalImgUrl = finalUrls.length === 0 ? null
+    : finalUrls.length === 1 ? finalUrls[0]
+    : JSON.stringify(finalUrls);
 
   const payload = {
     company:      val('company'),
@@ -291,7 +287,7 @@ async function deleteApp(id) {
   const { error } = await sb.from('applications').delete().eq('id', id);
   if (error) { showToast('Error deleting — please try again.'); return; }
 
-  if (app?.image_url) await removeAppImage(app.image_url);
+  for (const url of parseImageUrls(app?.image_url)) await removeAppImage(url);
   showToast('Application deleted.');
   closeDetailModal();
   await fetchApps();
@@ -408,7 +404,7 @@ function openAddModal(defaultStatus = 'Applied') {
   editingId = null;
   appForm.reset();
   editIdField.value = '';
-  imgFile = null; imgUrl = null; resetImgUI();
+  imgExistingUrls = []; imgNewFiles = []; imgRemovedUrls = []; renderImgGallery();
   setVal('status', defaultStatus);
   if (defaultStatus !== 'Planning') {
     document.getElementById('date-applied').value = today();
@@ -431,9 +427,9 @@ function openEditModal(id) {
   setVal('status',       app.status);
   setVal('link',         app.link);
   setVal('notes',        app.notes);
-  imgFile = null;
-  imgUrl  = app.image_url || null;
-  if (imgUrl) showImgPreview(imgUrl); else resetImgUI();
+  imgExistingUrls = parseImageUrls(app.image_url);
+  imgNewFiles = []; imgRemovedUrls = [];
+  renderImgGallery();
   modalTitle.textContent   = 'Edit Application';
   modalBtnText.textContent = 'Save Changes';
   modalOverlay.style.display = 'flex';
@@ -483,7 +479,7 @@ function openDetailModal(id) {
       ${app.deadline ? `<div class="detail-field"><label>Deadline</label><div class="val">${fmtDate(app.deadline)}</div></div>` : ''}
       ${app.link ? (() => { const sl = safeUrl(app.link); return sl ? `<div class="detail-field full"><label>Job Posting</label><div class="val"><a href="${esc(sl)}" target="_blank" rel="noopener noreferrer">${esc(app.link)}</a></div></div>` : `<div class="detail-field full"><label>Job Posting</label><div class="val" style="color:var(--text-3);font-size:0.88rem">${esc(app.link)}<br><span style="color:var(--red);font-size:0.78rem">⚠ Not a valid http/https URL</span></div></div>`; })() : ''}
       ${app.notes ? `<div class="detail-field full"><label>Notes</label><div class="val notes-val">${esc(app.notes)}</div></div>` : ''}
-      ${app.image_url ? `<div class="detail-field full"><label>Attachment</label><img class="detail-image" src="${esc(app.image_url)}" alt="Attachment" loading="lazy" /></div>` : ''}
+      ${parseImageUrls(app.image_url).length ? `<div class="detail-field full"><label>Attachments</label><div class="detail-images">${parseImageUrls(app.image_url).map(u => `<img class="detail-image" src="${esc(u)}" alt="Attachment" loading="lazy" />`).join('')}</div></div>` : ''}
     </div>
   `;
 
@@ -722,24 +718,64 @@ function showDayDetail(dateStr, dayEvents) {
 }
 
 // ── Image Upload ──────────────────────────────────
-function handleImageFile(file) {
-  if (!file || !file.type.startsWith('image/')) { showToast('Please select an image file.'); return; }
-  if (file.size > 5 * 1024 * 1024) { showToast('Image must be under 5 MB.'); return; }
-  imgFile = file;
-  showImgPreview(URL.createObjectURL(file));
+function parseImageUrls(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : [raw];
+  } catch { return [raw]; }
 }
 
-function showImgPreview(src) {
-  imgPreviewEl.src = src;
-  imgPlaceholder.style.display = 'none';
-  imgPreviewWrap.style.display = 'block';
+function renderImgGallery() {
+  // Remove all thumbs (keep the add tile)
+  imgGallery.querySelectorAll('.img-thumb').forEach(el => el.remove());
+
+  // Existing URLs
+  imgExistingUrls.forEach((url, i) => {
+    if (imgRemovedUrls.includes(url)) return;
+    const thumb = makeThumb(url, () => {
+      imgRemovedUrls.push(url);
+      renderImgGallery();
+    });
+    imgGallery.insertBefore(thumb, imgAddTile);
+  });
+
+  // New files (not yet uploaded)
+  imgNewFiles.forEach((file, i) => {
+    const objUrl = URL.createObjectURL(file);
+    const thumb = makeThumb(objUrl, () => {
+      imgNewFiles.splice(i, 1);
+      renderImgGallery();
+    });
+    imgGallery.insertBefore(thumb, imgAddTile);
+  });
 }
 
-function resetImgUI() {
-  imgInput.value   = '';
-  imgPreviewEl.src = '';
-  imgPreviewWrap.style.display = 'none';
-  imgPlaceholder.style.display = 'flex';
+function makeThumb(src, onRemove) {
+  const div = document.createElement('div');
+  div.className = 'img-thumb';
+  const img = document.createElement('img');
+  img.src = src;
+  img.alt = 'Preview';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'img-remove-btn';
+  btn.textContent = '✕';
+  btn.addEventListener('click', (e) => { e.stopPropagation(); onRemove(); });
+  div.appendChild(img);
+  div.appendChild(btn);
+  return div;
+}
+
+function handleImageFiles(files) {
+  let skipped = 0;
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) { skipped++; continue; }
+    if (file.size > 5 * 1024 * 1024) { showToast(`"${file.name}" exceeds 5 MB — skipped.`); continue; }
+    imgNewFiles.push(file);
+  }
+  if (skipped) showToast('Some files were not images — skipped.');
+  renderImgGallery();
 }
 
 async function uploadAppImage(file) {
@@ -761,19 +797,17 @@ async function removeAppImage(url) {
 }
 
 // Image event listeners
-imgUploadArea.addEventListener('click', () => imgInput.click());
-imgInput.addEventListener('change', (e) => { if (e.target.files[0]) handleImageFile(e.target.files[0]); });
-imgRemoveBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  imgFile = null; imgUrl = null; resetImgUI();
+imgAddTile.addEventListener('click', () => imgInput.click());
+imgInput.addEventListener('change', (e) => {
+  if (e.target.files.length) handleImageFiles(Array.from(e.target.files));
+  imgInput.value = '';
 });
-imgUploadArea.addEventListener('dragover',  (e) => { e.preventDefault(); imgUploadArea.classList.add('drag-over'); });
-imgUploadArea.addEventListener('dragleave', ()  => imgUploadArea.classList.remove('drag-over'));
-imgUploadArea.addEventListener('drop', (e) => {
+imgAddTile.addEventListener('dragover',  (e) => { e.preventDefault(); imgAddTile.classList.add('drag-over'); });
+imgAddTile.addEventListener('dragleave', ()  => imgAddTile.classList.remove('drag-over'));
+imgAddTile.addEventListener('drop', (e) => {
   e.preventDefault();
-  imgUploadArea.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) handleImageFile(file);
+  imgAddTile.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) handleImageFiles(Array.from(e.dataTransfer.files));
 });
 
 // ── Navigation ────────────────────────────────────

@@ -1,8 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir \"C:\\\\Users\\\\anton\\\\ws\\\\LIA_Tracker\")",
-      "mcp__70a40201-462c-4ff3-b79a-aa205521fe02__apply_migration"
+      "Bash(dir \"C:\\\\Users\\\\anton\\\\ws\\\\LIA_Tracker\")"
     ]
   }
 }

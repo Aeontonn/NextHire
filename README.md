@@ -15,17 +15,17 @@ A job application tracker with user accounts and real-time sync across all your 
 - **Search, filter & sort** — search by company, role, or location; filter by status; sort by date or company name
 
 ### Dashboard
-- **Stats bar** — live counts for Total, Planning, Applied, Interviews, Offers, and Rejected
+- **Stats bar** — Live counts for Total, Planning, Applied, Interviews, Offers, and Rejected
 
 ### Calendar
-- **Monthly calendar** — shows application dates (blue) and deadlines (orange) as colour-coded dots
-- **Day details** — click any date to see all events, with a quick-jump to each application's detail view
+- **Monthly calendar** — Shows application dates (blue) and deadlines (orange) as colour-coded dots
+- **Day details** — Click any date to see all events, with a quick-jump to each application's detail view
 
 ### To-Do
 - **Daily and weekly task lists** — separate sections each with their own task counts
-- **Task states** — Todo, Doing, and Done, with inline editing and delete
+- **Task states** — TODO, Doing, and Done, with inline editing and delete
 
 ### General
-- **Accounts** — sign up / sign in with email and password
-- **Synced data** — everything is stored in Supabase and syncs across every device you log into
-- **Polished UI** — dark theme with pastel accents, toast notifications, and smooth animations
+- **Accounts** — Sign up / sign in with email and password
+- **Synced data** — Everything is stored in Supabase and syncs across every device you log into
+- **Polished UI** — Dark theme with pastel accents, toast notifications, and smooth animations

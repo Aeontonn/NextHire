@@ -82,7 +82,10 @@ let authMode = 'login';
 authTabs.forEach(tab => {
   tab.addEventListener('click', () => {
     authMode = tab.dataset.tab;
-    authTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === authMode));
+    authTabs.forEach(t => {
+      t.classList.toggle('active', t.dataset.tab === authMode);
+      t.setAttribute('aria-selected', t.dataset.tab === authMode);
+    });
     confirmField.style.display    = authMode === 'signup' ? 'flex' : 'none';
     authBtnText.textContent       = authMode === 'signup' ? 'Create Account' : 'Sign In';
     authConfirm.required          = authMode === 'signup';
@@ -93,10 +96,16 @@ authTabs.forEach(tab => {
 });
 
 // ── Auth: password toggle ─────────────────────────
+const EYE_OPEN   = '<path d="M1.5 10S4.5 4 10 4s8.5 6 8.5 6-3 6-8.5 6-8.5-6-8.5-6z"/><circle cx="10" cy="10" r="2.5"/>';
+const EYE_CLOSED = '<path d="M3 3l14 14M8.2 4.3A8.6 8.6 0 0110 4c5.5 0 8.5 6 8.5 6a14 14 0 01-2.3 3M5.4 5.6A14 14 0 001.5 10s3 6 8.5 6a8 8 0 004-1.1"/><path d="M8.2 8.2a2.5 2.5 0 003.6 3.6"/>';
+
 togglePw.addEventListener('click', () => {
   const pw = authPassword;
-  pw.type = pw.type === 'password' ? 'text' : 'password';
-  togglePw.textContent = pw.type === 'password' ? '👁' : '🙈';
+  const show = pw.type === 'password';
+  pw.type = show ? 'text' : 'password';
+  document.getElementById('toggle-pw-icon').innerHTML = show ? EYE_CLOSED : EYE_OPEN;
+  togglePw.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  togglePw.setAttribute('aria-pressed', show);
 });
 
 // ── Auth: submit ──────────────────────────────────
@@ -133,7 +142,7 @@ authForm.addEventListener('submit', async (e) => {
       } else {
         // Email confirmation is ON — tell the user to check their inbox
         showAuthError(
-          '✅ Account created! Please check your email inbox (and spam) for a confirmation link, then come back and sign in.',
+          'Account created. Check your inbox (and spam folder) for a confirmation link, then come back and sign in.',
           true
         );
         setAuthLoading(false);
@@ -311,8 +320,8 @@ function render() {
   });
 
   filtered.sort((a, b) => {
-    if (sort === 'date-asc')  return a.date_applied.localeCompare(b.date_applied);
-    if (sort === 'date-desc') return b.date_applied.localeCompare(a.date_applied);
+    if (sort === 'date-asc')  return (a.date_applied || '').localeCompare(b.date_applied || '');
+    if (sort === 'date-desc') return (b.date_applied || '').localeCompare(a.date_applied || '');
     if (sort === 'company')   return a.company.localeCompare(b.company);
     if (sort === 'status')    return a.status.localeCompare(b.status);
     return 0;
@@ -337,34 +346,32 @@ function render() {
 function buildCard(app, i) {
   const card = document.createElement('div');
   card.className = `app-card s-${app.status}`;
-  card.style.animationDelay = `${i * 30}ms`;
+  card.style.animationDelay = `${Math.min(i, 10) * 30}ms`;
+  card.tabIndex = 0;
+  card.setAttribute('role', 'button');
+  card.setAttribute('aria-label', `${app.company}, ${app.role}, ${statusLabel(app.status)}`);
 
   const initials = app.company.slice(0,2).toUpperCase();
-  const avatarBg = avatarColor(app.company);
   const deadline = app.deadline
-    ? `<span>📅 Deadline ${fmtDate(app.deadline)}</span>` : '';
-  const dateMeta = app.status === 'Planning'
-    ? (app.deadline ? '' : '')
-    : `<span>📅 ${fmtDate(app.date_applied)}</span><span>${daysAgo(app.date_applied)}</span>`;
+    ? `<span class="meta-deadline">${icon('flag')}Due ${fmtDate(app.deadline)}</span>` : '';
+  const dateMeta = app.status === 'Planning' || !app.date_applied
+    ? ''
+    : `<span title="${fmtDate(app.date_applied)}">${icon('cal')}Applied ${daysAgo(app.date_applied)}</span>`;
 
   card.innerHTML = `
-    <div class="card-avatar" style="background:${avatarBg}">${esc(initials)}</div>
+    <div class="card-avatar" style="${avatarStyle(app.company)}" aria-hidden="true">${esc(initials)}</div>
     <div class="card-body">
       <div class="card-top">
         <span class="card-company">${esc(app.company)}</span>
       </div>
       <div class="card-role">${esc(app.role)}</div>
-      <div class="card-meta">
-        ${app.location ? `<span>📍 ${esc(app.location)}</span>` : ''}
-        ${dateMeta}
-        ${deadline}
-      </div>
+      <div class="card-meta">${app.location ? `<span>${icon('pin')}${esc(app.location)}</span>` : ''}${dateMeta}${deadline}</div>
     </div>
     <div class="card-right">
       <span class="badge badge-${app.status}">${statusLabel(app.status)}</span>
       <div class="card-actions">
-        <button class="btn-icon edit-btn" title="Edit" data-id="${app.id}">✏️</button>
-        <button class="btn-icon danger del-btn" title="Delete" data-id="${app.id}">🗑</button>
+        <button type="button" class="btn-icon edit-btn" aria-label="Edit ${esc(app.company)}" title="Edit">${icon('edit')}</button>
+        <button type="button" class="btn-icon danger del-btn" aria-label="Delete ${esc(app.company)}" title="Delete">${icon('trash')}</button>
       </div>
     </div>
   `;
@@ -372,6 +379,10 @@ function buildCard(app, i) {
   card.addEventListener('click', (e) => {
     if (e.target.closest('.edit-btn') || e.target.closest('.del-btn')) return;
     openDetailModal(app.id);
+  });
+  card.addEventListener('keydown', (e) => {
+    if (e.target !== card) return;
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailModal(app.id); }
   });
   card.querySelector('.edit-btn').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -411,8 +422,7 @@ function openAddModal(defaultStatus = 'Applied') {
   }
   modalTitle.textContent    = defaultStatus === 'Planning' ? 'Add to Planning' : 'Add Application';
   modalBtnText.textContent  = defaultStatus === 'Planning' ? 'Add to Planning' : 'Add Application';
-  modalOverlay.style.display = 'flex';
-  setTimeout(() => document.getElementById('company').focus(), 80);
+  openOverlay(modalOverlay, document.getElementById('company'));
 }
 
 function openEditModal(id) {
@@ -432,14 +442,48 @@ function openEditModal(id) {
   renderImgGallery();
   modalTitle.textContent   = 'Edit Application';
   modalBtnText.textContent = 'Save Changes';
-  modalOverlay.style.display = 'flex';
-  closeDetailModal();
+  closeDetailModal(false);
+  openOverlay(modalOverlay, document.getElementById('company'));
 }
 
 function closeModal() {
-  modalOverlay.style.display = 'none';
+  if (modalOverlay.style.display === 'none') return;
+  closeOverlay(modalOverlay);
   editingId = null;
 }
+
+// ── Overlay focus management ──────────────────────
+// Remember what opened a dialog so focus can return there on close.
+let overlayReturnFocus = null;
+
+function openOverlay(overlay, focusEl) {
+  if (!overlayReturnFocus || !document.body.contains(overlayReturnFocus)) {
+    overlayReturnFocus = document.activeElement;
+  }
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => (focusEl || overlay.querySelector('.modal-close'))?.focus());
+}
+
+function closeOverlay(overlay, restoreFocus = true) {
+  overlay.style.display = 'none';
+  if (restoreFocus && overlayReturnFocus && document.body.contains(overlayReturnFocus)) {
+    overlayReturnFocus.focus();
+  }
+  if (restoreFocus) overlayReturnFocus = null;
+}
+
+// Keep Tab inside the open dialog
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Tab') return;
+  const overlay = [modalOverlay, detailOverlay, calendarOverlay].find(o => o.style.display !== 'none');
+  if (!overlay) return;
+  const focusables = [...overlay.querySelectorAll('button, [href], input:not([type="hidden"]):not(.sr-only), select, textarea, [tabindex]:not([tabindex="-1"])')]
+    .filter(el => !el.disabled && el.offsetParent !== null);
+  if (!focusables.length) return;
+  const first = focusables[0], last = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
 
 modalCloseBtn.addEventListener('click',  closeModal);
 modalCancelBtn.addEventListener('click', closeModal);
@@ -477,19 +521,20 @@ function openDetailModal(id) {
         <div class="val">${fmtDate(app.date_applied)}</div>
       </div>
       ${app.deadline ? `<div class="detail-field"><label>Deadline</label><div class="val">${fmtDate(app.deadline)}</div></div>` : ''}
-      ${app.link ? (() => { const sl = safeUrl(app.link); return sl ? `<div class="detail-field full"><label>Job Posting</label><div class="val"><a href="${esc(sl)}" target="_blank" rel="noopener noreferrer">${esc(app.link)}</a></div></div>` : `<div class="detail-field full"><label>Job Posting</label><div class="val" style="color:var(--text-3);font-size:0.88rem">${esc(app.link)}<br><span style="color:var(--red);font-size:0.78rem">⚠ Not a valid http/https URL</span></div></div>`; })() : ''}
+      ${app.link ? (() => { const sl = safeUrl(app.link); return sl ? `<div class="detail-field full"><label>Job Posting</label><div class="val"><a href="${esc(sl)}" target="_blank" rel="noopener noreferrer">${esc(app.link)}</a></div></div>` : `<div class="detail-field full"><label>Job Posting</label><div class="val invalid-link">${esc(app.link)}<small>Not a valid http/https URL — edit the application to fix it.</small></div></div>`; })() : ''}
       ${app.notes ? `<div class="detail-field full"><label>Notes</label><div class="val notes-val">${esc(app.notes)}</div></div>` : ''}
-      ${parseImageUrls(app.image_url).length ? `<div class="detail-field full"><label>Attachments</label><div class="detail-images">${parseImageUrls(app.image_url).map(u => `<img class="detail-image" src="${esc(u)}" alt="Attachment" loading="lazy" />`).join('')}</div></div>` : ''}
+      ${parseImageUrls(app.image_url).length ? `<div class="detail-field full"><label>Attachments</label><div class="detail-images">${parseImageUrls(app.image_url).map((u, n) => `<a class="detail-image-link" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><img class="detail-image" src="${esc(u)}" alt="Attachment ${n + 1} for ${esc(app.company)}" width="140" height="100" loading="lazy" /></a>`).join('')}</div></div>` : ''}
     </div>
   `;
 
   detailEdit.onclick   = () => openEditModal(id);
   detailDelete.onclick = () => deleteApp(id);
-  detailOverlay.style.display = 'flex';
+  openOverlay(detailOverlay, detailEdit);
 }
 
-function closeDetailModal() {
-  detailOverlay.style.display = 'none';
+function closeDetailModal(restoreFocus = true) {
+  if (detailOverlay.style.display === 'none') return;
+  closeOverlay(detailOverlay, restoreFocus);
 }
 
 detailClose.addEventListener('click', closeDetailModal);
@@ -507,20 +552,33 @@ sortBy.addEventListener('change',      render);
 // ── Helpers ───────────────────────────────────────
 function val(id)       { return document.getElementById(id).value.trim(); }
 function setVal(id, v) { document.getElementById(id).value = v || ''; }
-function today()       { return new Date().toISOString().split('T')[0]; }
+// Local calendar date as YYYY-MM-DD (toISOString would give the UTC date)
+function isoLocal(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+function today() { return isoLocal(new Date()); }
+
+function parseLocalDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+const DATE_FMT = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const REL_FMT  = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
 
 function fmtDate(iso) {
   if (!iso) return '—';
-  const [y, m, d] = iso.split('-');
-  return `${d}/${m}/${y}`;
+  return DATE_FMT.format(parseLocalDate(iso));
 }
 
 function daysAgo(iso) {
   if (!iso) return '';
-  const diff = Math.floor((Date.now() - new Date(iso)) / 86400000);
-  if (diff === 0) return 'today';
-  if (diff === 1) return '1 day ago';
-  return `${diff} days ago`;
+  const diff = Math.round((parseLocalDate(today()) - parseLocalDate(iso)) / 86400000);
+  return REL_FMT.format(-diff, 'day');
+}
+
+function icon(name) {
+  return `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 }
 
 function esc(s) {
@@ -541,12 +599,13 @@ function statusLabel(s) {
   return m[s] || s;
 }
 
-const AVATAR_COLORS = [
-  '#7c3aed','#2563eb','#059669','#b45309',
-  '#be185d','#0891b2','#dc2626','#7c3aed',
-];
-function avatarColor(name) {
-  return AVATAR_COLORS[(name.charCodeAt(0) + name.length) % AVATAR_COLORS.length];
+// Soft tinted avatar: muted hue background with a light text of the same hue
+const AVATAR_HUES = [262, 214, 158, 32, 330, 190, 8, 48];
+function avatarStyle(name) {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const hue = AVATAR_HUES[h % AVATAR_HUES.length];
+  return `background:hsl(${hue} 30% 24%);color:hsl(${hue} 85% 84%)`;
 }
 
 // ── Calendar ──────────────────────────────────────
@@ -585,11 +644,12 @@ function openCalendarModal() {
   calSelectedDay = null;
   calDayDetail.style.display = 'none';
   renderCalendar();
-  calendarOverlay.style.display = 'flex';
+  openOverlay(calendarOverlay, document.getElementById('cal-next-btn'));
 }
 
-function closeCalendarModal() {
-  calendarOverlay.style.display = 'none';
+function closeCalendarModal(restoreFocus = true) {
+  if (calendarOverlay.style.display === 'none') return;
+  closeOverlay(calendarOverlay, restoreFocus);
 }
 
 function getCalendarEvents() {
@@ -607,7 +667,8 @@ function getCalendarEvents() {
   return events;
 }
 
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_FMT = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
+const DAY_FMT   = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
 const STATUS_COLORS = {
   Planning:    'var(--purple-400)',
@@ -620,12 +681,12 @@ const STATUS_COLORS = {
 };
 
 function renderCalendar() {
-  calMonthTitle.textContent = `${MONTH_NAMES[calMonth]} ${calYear}`;
+  calMonthTitle.textContent = MONTH_FMT.format(new Date(calYear, calMonth, 1));
   calDayDetail.style.display = 'none';
   calSelectedDay = null;
 
   const events   = getCalendarEvents();
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = today();
 
   let startOffset = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
   startOffset = (startOffset + 6) % 7; // Mon=0 ... Sun=6
@@ -644,10 +705,17 @@ function renderCalendar() {
     const dateStr   = `${calYear}-${String(calMonth + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dayEvents = events[dateStr] || [];
 
-    const cell = document.createElement('div');
+    // Days with events are real buttons so they're reachable by keyboard
+    const cell = document.createElement(dayEvents.length > 0 ? 'button' : 'div');
     cell.className = 'cal-day';
     if (dateStr === todayStr)    cell.classList.add('cal-today');
-    if (dayEvents.length > 0)   cell.classList.add('cal-has-events');
+    if (dayEvents.length > 0) {
+      cell.type = 'button';
+      cell.classList.add('cal-has-events');
+      cell.setAttribute('aria-label',
+        `${DAY_FMT.format(parseLocalDate(dateStr))}, ${dayEvents.length} ${dayEvents.length === 1 ? 'event' : 'events'}`);
+    }
+    if (dateStr === todayStr) cell.setAttribute('aria-current', 'date');
 
     cell.innerHTML = `<span class="cal-day-num">${d}</span>`;
 
@@ -683,12 +751,13 @@ function renderCalendar() {
 }
 
 function showDayDetail(dateStr, dayEvents) {
-  const [y, m, d] = dateStr.split('-');
-  calDayTitle.textContent = `${Number(d)} ${MONTH_NAMES[Number(m) - 1]} ${y}`;
+  calDayTitle.textContent = DAY_FMT.format(parseLocalDate(dateStr));
   calDayEvents.innerHTML = '';
 
   dayEvents.forEach(ev => {
-    const item = document.createElement('div');
+    // Whole row is the button — bigger hit target than a trailing icon
+    const item = document.createElement('button');
+    item.type = 'button';
     item.className = 'cal-event-item';
 
     const isDeadline = ev.type === 'deadline';
@@ -697,17 +766,15 @@ function showDayDetail(dateStr, dayEvents) {
 
     item.innerHTML = `
       <span class="badge ${badgeClass}">${esc(typeLabel)}</span>
-      <div class="cal-event-info">
+      <span class="cal-event-info">
         <span class="cal-event-company">${esc(ev.app.company)}</span>
         <span class="cal-event-role">${esc(ev.app.role)}</span>
-      </div>
-      <button class="btn-icon" title="View details">
-        <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
-      </button>
+      </span>
+      ${icon('chevron')}
     `;
 
-    item.querySelector('.btn-icon').addEventListener('click', () => {
-      closeCalendarModal();
+    item.addEventListener('click', () => {
+      closeCalendarModal(false);
       openDetailModal(ev.app.id);
     });
 
@@ -756,11 +823,14 @@ function makeThumb(src, onRemove) {
   div.className = 'img-thumb';
   const img = document.createElement('img');
   img.src = src;
-  img.alt = 'Preview';
+  img.alt = 'Attachment preview';
+  img.width = 96;
+  img.height = 96;
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'img-remove-btn';
-  btn.textContent = '✕';
+  btn.setAttribute('aria-label', 'Remove image');
+  btn.innerHTML = '<svg width="12" height="12" aria-hidden="true"><use href="#i-x"/></svg>';
   btn.addEventListener('click', (e) => { e.stopPropagation(); onRemove(); });
   div.appendChild(img);
   div.appendChild(btn);
@@ -820,7 +890,11 @@ navTabs.forEach(tab => {
 });
 
 function switchView(view) {
-  navTabs.forEach(t => t.classList.toggle('active', t.dataset.view === view));
+  navTabs.forEach(t => {
+    t.classList.toggle('active', t.dataset.view === view);
+    if (t.dataset.view === view) t.setAttribute('aria-current', 'page');
+    else t.removeAttribute('aria-current');
+  });
   viewApplications.style.display = view === 'applications' ? 'block' : 'none';
   viewTodos.style.display        = view === 'todos'        ? 'block' : 'none';
   if (view === 'todos') fetchTodos();
@@ -865,23 +939,20 @@ function buildTodoItem(todo) {
   const item = document.createElement('div');
   item.className = `todo-item todo-${todo.status}`;
 
-  const checkIcon = todo.status === 'done'
-    ? '<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>'
-    : '<circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/>';
-
-  const doingBtn = todo.status !== 'done'
-    ? `<button class="todo-doing-btn${todo.status === 'doing' ? ' active' : ''}" title="${todo.status === 'doing' ? 'Back to todo' : 'Mark as doing'}">Doing</button>`
+  const done = todo.status === 'done';
+  const doingBtn = !done
+    ? `<button type="button" class="todo-doing-btn${todo.status === 'doing' ? ' active' : ''}" aria-pressed="${todo.status === 'doing'}" title="${todo.status === 'doing' ? 'Back to todo' : 'Mark as doing'}">Doing</button>`
     : '';
 
   item.innerHTML = `
-    <button class="todo-check${todo.status === 'done' ? ' checked' : ''}" title="${todo.status === 'done' ? 'Mark undone' : 'Mark done'}">
-      <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">${checkIcon}</svg>
+    <button type="button" class="todo-check${done ? ' checked' : ''}" role="checkbox" aria-checked="${done}" aria-label="Done: ${esc(todo.text)}">
+      <svg width="14" height="14" aria-hidden="true"><use href="#i-check"/></svg>
     </button>
     <span class="todo-text">${esc(todo.text)}</span>
     <div class="todo-actions">
       ${doingBtn}
-      <button class="todo-edit-btn btn-icon" title="Edit">✏️</button>
-      <button class="todo-delete-btn btn-icon danger" title="Delete">🗑</button>
+      <button type="button" class="todo-edit-btn btn-icon" aria-label="Edit task" title="Edit">${icon('edit')}</button>
+      <button type="button" class="todo-delete-btn btn-icon danger" aria-label="Delete task" title="Delete">${icon('trash')}</button>
     </div>
   `;
 
